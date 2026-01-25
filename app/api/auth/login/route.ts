@@ -70,7 +70,11 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Login error:', error);
     return NextResponse.json(
-      { error: 'Something went wrong. Please try again.' },
+      {
+        error: 'Something went wrong. Please try again.',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        hint: 'If this is a new deployment, visit /api/seed to create test users first.'
+      },
       { status: 500 }
     );
   }
