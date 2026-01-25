@@ -1,9 +1,13 @@
 # Dependencies
 node_modules/
 
+# Next.js
+.next/
+out/
+
 # Build outputs
 dist/
-.angular/
+build/
 
 # Environment files
 .env
@@ -33,3 +37,14 @@ coverage/
 # Prisma
 *.db
 *.db-journal
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Backend (separate deployment)
+backend/node_modules/
+backend/.env

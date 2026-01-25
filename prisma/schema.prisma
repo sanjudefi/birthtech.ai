@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+model User {
+  id               String            @id @default(cuid())
+  email            String            @unique
+  passwordHash     String
+  firstName        String?
+  lastName         String?
+  emailVerified    Boolean           @default(false)
+  resetToken       String?
+  resetExpires     DateTime?
+  stripeCustomerId String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  subscription     Subscription?
+  pregnancyProfile PregnancyProfile?
+  dailyCarePlans   DailyCarePlan[]
+  weeklyInventory  WeeklyInventory[]
+}
+
+model Subscription {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  planType             String   @default("basic") // basic, premium
+  status               String   @default("inactive") // active, cancelled, expired, inactive
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model PregnancyProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pregnancyMonth Int      // 1-9
+  dueDate        DateTime
+  heightCm       Float?
+  weightKg       Float?
+  dietPreference String   @default("non-veg") // veg, non-veg, vegan
+  allergies      String[] @default([])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model DailyCarePlan {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planDate        DateTime
+  meals           Json     // { breakfast: {}, lunch: {}, dinner: {}, snacks: [] }
+  exerciseMinutes Int
+  exerciseType    String
+  hydrationTarget Int      @default(8)
+  sleepTip        String
+  wellnessTip     String
+  safetyNote      String
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, planDate])
+}
+
+model WeeklyInventory {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekStart DateTime
+  foodItems Json     // { proteins: [], vegetables: [], fruits: [], dairy: [], grains: [] }
+  createdAt DateTime @default(now())
+
+  @@unique([userId, weekStart])
+}
+
+model MonthlyStaples {
+  id             String   @id @default(cuid())
+  pregnancyMonth Int
+  dietPreference String
+  stapleItems    Json     // { ironRich: [], calciumSources: [], omega3: [], folate: [] }
+  createdAt      DateTime @default(now())
+
+  @@unique([pregnancyMonth, dietPreference])
+}
