@@ -15,6 +15,7 @@ model User {
   firstName        String?
   lastName         String?
   emailVerified    Boolean           @default(false)
+  isAdmin          Boolean           @default(false)
   resetToken       String?
   resetExpires     DateTime?
   stripeCustomerId String?

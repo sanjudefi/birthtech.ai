@@ -10,7 +10,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { email, password } = body;
 
-    // Validate input
     if (!email || !password) {
       return NextResponse.json(
         { error: 'Email and password are required' },
@@ -21,16 +20,20 @@ export async function POST(request: NextRequest) {
     // Find user
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
-      include: {
-        subscription: true,
-        pregnancyProfile: true,
-      },
     });
 
     if (!user) {
       return NextResponse.json(
-        { error: 'Invalid email or password' },
+        { error: 'Invalid credentials' },
         { status: 401 }
+      );
+    }
+
+    // Check if user is admin
+    if (!user.isAdmin) {
+      return NextResponse.json(
+        { error: 'Access denied. Admin privileges required.' },
+        { status: 403 }
       );
     }
 
@@ -39,21 +42,17 @@ export async function POST(request: NextRequest) {
 
     if (!isPasswordValid) {
       return NextResponse.json(
-        { error: 'Invalid email or password' },
+        { error: 'Invalid credentials' },
         { status: 401 }
       );
     }
 
     // Generate JWT
     const token = jwt.sign(
-      { userId: user.id, email: user.email, isAdmin: user.isAdmin },
+      { userId: user.id, email: user.email, isAdmin: true },
       JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '24h' }
     );
-
-    // Check subscription and profile status
-    const hasSubscription = user.subscription?.status === 'active';
-    const hasProfile = !!user.pregnancyProfile;
 
     return NextResponse.json({
       token,
@@ -64,13 +63,11 @@ export async function POST(request: NextRequest) {
         lastName: user.lastName,
         isAdmin: user.isAdmin,
       },
-      hasSubscription,
-      hasProfile,
     });
   } catch (error: any) {
-    console.error('Login error:', error);
+    console.error('Admin login error:', error);
     return NextResponse.json(
-      { error: 'Something went wrong. Please try again.' },
+      { error: 'Something went wrong' },
       { status: 500 }
     );
   }
