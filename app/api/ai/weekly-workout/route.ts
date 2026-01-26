@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { generateWeeklyWorkoutPlan } from '@/lib/openai';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'birthtech-jwt-secret-2026';
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
     const plans = await prisma.weeklyPlan.findMany({
       where: {
         userId,
-        workouts: { not: null }
+        NOT: { workouts: Prisma.JsonNull }
       },
       orderBy: { weekStart: 'desc' },
       take: 12,
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
 
     // Calculate week number
     const existingPlans = await prisma.weeklyPlan.count({
-      where: { userId, workouts: { not: null } }
+      where: { userId, NOT: { workouts: Prisma.JsonNull } }
     });
     const weekNumber = existingPlans + 1;
 
