@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -41,7 +41,7 @@ interface MealPlan {
   nutritionTip: string;
 }
 
-export default function MealsPage() {
+function MealsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
@@ -289,5 +289,22 @@ export default function MealsPage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function MealsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 to-purple-50">
+          <div className="text-center">
+            <Heart className="w-12 h-12 text-pink-500 mx-auto animate-pulse" fill="#ec4899" />
+            <p className="mt-4 text-gray-600">Loading meal planner...</p>
+          </div>
+        </div>
+      }
+    >
+      <MealsContent />
+    </Suspense>
   );
 }
