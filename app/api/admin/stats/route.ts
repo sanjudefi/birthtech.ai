@@ -59,13 +59,13 @@ export async function GET(request: NextRequest) {
     // Calculate stats
     const totalUsers = users.length;
     const activeSubscriptions = users.filter(
-      (u) => u.subscription?.status === 'active'
+      (u: typeof users[0]) => u.subscription?.status === 'active'
     ).length;
     const basicPlans = users.filter(
-      (u) => u.subscription?.planType === 'basic' && u.subscription?.status === 'active'
+      (u: typeof users[0]) => u.subscription?.planType === 'basic' && u.subscription?.status === 'active'
     ).length;
     const premiumPlans = users.filter(
-      (u) => u.subscription?.planType === 'premium' && u.subscription?.status === 'active'
+      (u: typeof users[0]) => u.subscription?.planType === 'premium' && u.subscription?.status === 'active'
     ).length;
 
     // Calculate revenue (basic = $10, premium = $20)

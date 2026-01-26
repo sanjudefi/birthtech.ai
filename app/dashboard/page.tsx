@@ -9,83 +9,95 @@ import {
   LogOut,
   Utensils,
   Dumbbell,
-  Droplets,
-  Moon,
-  Leaf,
-  AlertTriangle,
-  ChevronLeft,
-  ChevronRight,
   ShoppingCart,
+  Pill,
+  FileText,
+  MessageCircle,
   Calendar,
-  CheckCircle,
-  Shield,
+  Droplets,
+  Sparkles,
+  ChevronRight,
+  Baby,
+  Settings,
 } from 'lucide-react';
 
-// Sample care data - in production, this comes from API
-const sampleCareData = {
-  greeting: 'Good morning',
-  userName: 'Sarah',
-  pregnancyInfo: {
-    month: 6,
-    week: 24,
-    babySize: 'ear of corn',
-    babySizeEmoji: '🌽',
+// Baby size by month
+const babySizes = [
+  { month: 1, size: 'poppy seed', emoji: '.' },
+  { month: 2, size: 'raspberry', emoji: '' },
+  { month: 3, size: 'lime', emoji: '' },
+  { month: 4, size: 'avocado', emoji: '' },
+  { month: 5, size: 'mango', emoji: '' },
+  { month: 6, size: 'ear of corn', emoji: '' },
+  { month: 7, size: 'eggplant', emoji: '' },
+  { month: 8, size: 'butternut squash', emoji: '' },
+  { month: 9, size: 'watermelon', emoji: '' },
+];
+
+const mainTiles = [
+  {
+    id: 'meals',
+    title: 'Meal Planner',
+    description: 'AI-powered daily meals',
+    icon: Utensils,
+    color: 'from-pink-500 to-rose-500',
+    bgLight: 'bg-pink-50',
+    href: '/dashboard/meals',
   },
-  todaysCare: {
-    meals: {
-      breakfast: { name: 'Oatmeal with Berries', description: 'Fiber-rich start with antioxidants' },
-      lunch: { name: 'Grilled Salmon Salad', description: 'Omega-3 for baby brain development' },
-      dinner: { name: 'Chicken Stir-fry', description: 'Lean protein with vegetables' },
-      snacks: ['Greek yogurt', 'Almonds', 'Apple slices'],
-    },
-    exercise: { minutes: 20, type: 'Gentle prenatal yoga' },
-    hydration: { target: 8, completed: 3 },
-    sleepTip: 'Try sleeping on your left side with a pillow between your knees for better blood flow.',
-    wellnessTip: 'Practice 5 minutes of deep breathing today to reduce stress and connect with baby.',
-    safetyNote: 'Avoid heavy lifting and prolonged standing. Take breaks every 30 minutes.',
+  {
+    id: 'workouts',
+    title: 'Workouts',
+    description: 'Safe pregnancy exercises',
+    icon: Dumbbell,
+    color: 'from-purple-500 to-indigo-500',
+    bgLight: 'bg-purple-50',
+    href: '/dashboard/workouts',
   },
-};
-
-const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-const groceryList = {
-  proteins: [
-    { item: 'Salmon', quantity: '500g' },
-    { item: 'Eggs', quantity: '12' },
-    { item: 'Chicken breast', quantity: '1 lb' },
-  ],
-  vegetables: [
-    { item: 'Spinach', quantity: '2 bunches' },
-    { item: 'Broccoli', quantity: '1 lb' },
-    { item: 'Carrots', quantity: '1 lb' },
-  ],
-  fruits: [
-    { item: 'Bananas', quantity: '6' },
-    { item: 'Berries', quantity: '2 boxes' },
-    { item: 'Oranges', quantity: '4' },
-  ],
-  dairy: [
-    { item: 'Milk', quantity: '2L' },
-    { item: 'Greek yogurt', quantity: '500g' },
-  ],
-  grains: [
-    { item: 'Oats', quantity: '1 kg' },
-    { item: 'Brown rice', quantity: '1 kg' },
-  ],
-};
-
-const monthlyStaples = {
-  ironRich: ['Lentils', 'Spinach', 'Red meat', 'Fortified cereals'],
-  calciumSources: ['Fortified milk', 'Cheese', 'Yogurt', 'Almonds'],
-  omega3: ['Salmon', 'Walnuts', 'Chia seeds', 'Flaxseed'],
-  folate: ['Leafy greens', 'Beans', 'Citrus fruits', 'Fortified grains'],
-};
+  {
+    id: 'grocery',
+    title: 'Grocery List',
+    description: 'Weekly shopping list',
+    icon: ShoppingCart,
+    color: 'from-green-500 to-emerald-500',
+    bgLight: 'bg-green-50',
+    href: '/dashboard/grocery',
+  },
+  {
+    id: 'supplements',
+    title: 'Supplements',
+    description: 'Track vitamins & meds',
+    icon: Pill,
+    color: 'from-orange-500 to-amber-500',
+    bgLight: 'bg-orange-50',
+    href: '/dashboard/supplements',
+  },
+  {
+    id: 'reports',
+    title: 'Reports',
+    description: 'Upload & track reports',
+    icon: FileText,
+    color: 'from-blue-500 to-cyan-500',
+    bgLight: 'bg-blue-50',
+    href: '/dashboard/reports',
+  },
+  {
+    id: 'chat',
+    title: 'AI Helper',
+    description: 'Ask anything',
+    icon: MessageCircle,
+    color: 'from-violet-500 to-purple-500',
+    bgLight: 'bg-violet-50',
+    href: '/dashboard/chat',
+  },
+];
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [hydrationCount, setHydrationCount] = useState(3);
-  const [currentWeekStart, setCurrentWeekStart] = useState(new Date());
   const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [tipOfDay, setTipOfDay] = useState<string>('');
+  const [hydrationCount, setHydrationCount] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -99,7 +111,50 @@ export default function DashboardPage() {
     if (userData) {
       setUser(JSON.parse(userData));
     }
+
+    // Fetch profile and tip
+    fetchProfile(token);
   }, [router]);
+
+  const fetchProfile = async (token: string) => {
+    try {
+      const res = await fetch('/api/profile', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.status === 404) {
+        // No profile - redirect to onboarding
+        router.push('/onboarding');
+        return;
+      }
+
+      if (res.ok) {
+        const data = await res.json();
+        setProfile(data);
+
+        // Get tip of day
+        fetchTipOfDay(token);
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchTipOfDay = async (token: string) => {
+    try {
+      const res = await fetch('/api/ai/tip', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTipOfDay(data.tip);
+      }
+    } catch (error) {
+      setTipOfDay("Stay hydrated and rest when you need to. You're doing amazing!");
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -107,31 +162,38 @@ export default function DashboardPage() {
     router.push('/');
   };
 
-  const getWeekDates = () => {
-    const dates = [];
-    const start = new Date(currentWeekStart);
-    start.setDate(start.getDate() - start.getDay() + 1); // Monday
-
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(start);
-      date.setDate(start.getDate() + i);
-      dates.push(date);
-    }
-    return dates;
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
   };
 
-  const isToday = (date: Date) => {
-    const today = new Date();
-    return date.toDateString() === today.toDateString();
+  const getWeekFromMonth = (month: number) => {
+    const weekRanges = [
+      [1, 4], [5, 8], [9, 13], [14, 17], [18, 22], [23, 27], [28, 31], [32, 35], [36, 40]
+    ];
+    const range = weekRanges[month - 1] || [1, 4];
+    return Math.floor((range[0] + range[1]) / 2);
   };
 
-  const isPast = (date: Date) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return date < today;
+  const getBabySize = (month: number) => {
+    return babySizes[month - 1] || babySizes[0];
   };
 
-  const care = sampleCareData;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 to-purple-50">
+        <div className="text-center">
+          <Heart className="w-12 h-12 text-pink-500 mx-auto animate-pulse" fill="#ec4899" />
+          <p className="mt-4 text-gray-600">Loading your care plan...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const babyInfo = getBabySize(profile?.pregnancyMonth || 6);
+  const weekNum = getWeekFromMonth(profile?.pregnancyMonth || 6);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50">
@@ -144,16 +206,25 @@ export default function DashboardPage() {
               BirthTech.ai
             </span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <Link
-              href="/profile"
+              href="/dashboard/calendar"
               className="p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-full"
+              title="Calendar"
+            >
+              <Calendar className="w-5 h-5" />
+            </Link>
+            <Link
+              href="/dashboard/profile"
+              className="p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-full"
+              title="Profile"
             >
               <User className="w-5 h-5" />
             </Link>
             <button
               onClick={handleLogout}
               className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-full"
+              title="Logout"
             >
               <LogOut className="w-5 h-5" />
             </button>
@@ -161,313 +232,154 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">
-            {care.greeting}, {user?.firstName || care.userName}! 💜
-          </h1>
-          <p className="text-gray-600 mt-1">
-            You're in Week {care.pregnancyInfo.week} • Baby is the size of an{' '}
-            {care.pregnancyInfo.babySize} {care.pregnancyInfo.babySizeEmoji}
-          </p>
-        </div>
-
-        {/* Today's Care Section */}
-        <section className="mb-10">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Today's Care</h2>
-          <div className="grid md:grid-cols-3 gap-4">
-            {/* Meals Card */}
-            <div className="care-card">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-pink-100 rounded-xl flex items-center justify-center">
-                  <Utensils className="w-5 h-5 text-pink-500" />
-                </div>
-                <h3 className="font-semibold text-gray-900">Meals</h3>
-              </div>
-              <div className="space-y-3 text-sm">
-                <div>
-                  <p className="font-medium text-gray-900">Breakfast</p>
-                  <p className="text-gray-600">{care.todaysCare.meals.breakfast.name}</p>
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Lunch</p>
-                  <p className="text-gray-600">{care.todaysCare.meals.lunch.name}</p>
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Dinner</p>
-                  <p className="text-gray-600">{care.todaysCare.meals.dinner.name}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Exercise Card */}
-            <div className="care-card">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
-                  <Dumbbell className="w-5 h-5 text-purple-500" />
-                </div>
-                <h3 className="font-semibold text-gray-900">Exercise</h3>
-              </div>
-              <p className="text-3xl font-bold text-purple-600 mb-1">
-                {care.todaysCare.exercise.minutes} min
+      <main className="max-w-6xl mx-auto px-4 py-6">
+        {/* Welcome Card */}
+        <div className="bg-gradient-to-r from-purple-600 to-pink-500 rounded-2xl p-6 text-white mb-6">
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl font-bold mb-1">
+                {getGreeting()}, {user?.firstName || 'Mama'}!
+              </h1>
+              <p className="text-purple-100 text-sm">
+                Week {weekNum} • Baby is the size of a {babyInfo.size} {babyInfo.emoji}
               </p>
-              <p className="text-gray-600 text-sm">{care.todaysCare.exercise.type}</p>
-              <button className="mt-4 w-full py-2 bg-purple-100 text-purple-700 rounded-lg text-sm font-medium hover:bg-purple-200 transition-colors">
-                Start Session
-              </button>
             </div>
+            <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
+              <Baby className="w-8 h-8 text-white" />
+            </div>
+          </div>
 
-            {/* Hydration Card */}
-            <div className="care-card">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                  <Droplets className="w-5 h-5 text-blue-500" />
-                </div>
-                <h3 className="font-semibold text-gray-900">Hydration</h3>
-              </div>
-              <p className="text-3xl font-bold text-blue-600 mb-1">
-                {hydrationCount}/{care.todaysCare.hydration.target}
-              </p>
-              <p className="text-gray-600 text-sm">glasses of water</p>
+          {/* Quick Stats */}
+          <div className="grid grid-cols-3 gap-3 mt-4">
+            <div className="bg-white/20 rounded-xl p-3 text-center">
+              <p className="text-2xl font-bold">{profile?.pregnancyMonth || 6}</p>
+              <p className="text-xs text-purple-100">Month</p>
+            </div>
+            <div className="bg-white/20 rounded-xl p-3 text-center">
+              <p className="text-2xl font-bold">{Math.ceil((new Date(profile?.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))}d</p>
+              <p className="text-xs text-purple-100">To Go</p>
+            </div>
+            <div className="bg-white/20 rounded-xl p-3 text-center">
               <button
                 onClick={() => setHydrationCount(Math.min(hydrationCount + 1, 12))}
-                className="mt-4 w-full py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors"
+                className="w-full"
               >
-                + Add Glass
+                <p className="text-2xl font-bold">{hydrationCount}/{profile?.waterIntakeGoal || 8}</p>
+                <p className="text-xs text-purple-100">Water</p>
               </button>
             </div>
+          </div>
+        </div>
 
-            {/* Sleep Tip Card */}
-            <div className="care-card">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
-                  <Moon className="w-5 h-5 text-indigo-500" />
-                </div>
-                <h3 className="font-semibold text-gray-900">Rest & Sleep</h3>
-              </div>
-              <p className="text-gray-600 text-sm">{care.todaysCare.sleepTip}</p>
+        {/* Tip of the Day */}
+        {tipOfDay && (
+          <div className="bg-white rounded-2xl p-4 mb-6 flex items-start gap-3 shadow-sm">
+            <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Sparkles className="w-5 h-5 text-amber-500" />
             </div>
-
-            {/* Wellness Tip Card */}
-            <div className="care-card">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
-                  <Leaf className="w-5 h-5 text-green-500" />
-                </div>
-                <h3 className="font-semibold text-gray-900">Wellness</h3>
-              </div>
-              <p className="text-gray-600 text-sm">{care.todaysCare.wellnessTip}</p>
-            </div>
-
-            {/* Safety Note Card */}
-            <div className="care-card">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
-                  <AlertTriangle className="w-5 h-5 text-amber-500" />
-                </div>
-                <h3 className="font-semibold text-gray-900">Safety</h3>
-              </div>
-              <p className="text-gray-600 text-sm">{care.todaysCare.safetyNote}</p>
+            <div>
+              <p className="text-sm font-medium text-gray-900">Tip of the Day</p>
+              <p className="text-sm text-gray-600 mt-1">{tipOfDay}</p>
             </div>
           </div>
-        </section>
+        )}
 
-        {/* Weekly Calendar */}
-        <section className="mb-10">
+        {/* Main Feature Tiles - 6 Big Icons */}
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Your Care Plan</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+          {mainTiles.map((tile) => {
+            const Icon = tile.icon;
+            return (
+              <Link
+                key={tile.id}
+                href={tile.href}
+                className="bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition-all hover:-translate-y-1 group"
+              >
+                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${tile.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                  <Icon className="w-7 h-7 text-white" />
+                </div>
+                <h3 className="font-semibold text-gray-900">{tile.title}</h3>
+                <p className="text-sm text-gray-500 mt-1">{tile.description}</p>
+                <div className="flex items-center gap-1 text-purple-600 text-sm mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                  Open <ChevronRight className="w-4 h-4" />
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Quick Actions */}
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          {/* Generate Today's Plan */}
+          <Link
+            href="/dashboard/meals?generate=true"
+            className="bg-gradient-to-r from-pink-500 to-rose-500 rounded-2xl p-5 text-white flex items-center gap-4 hover:shadow-lg transition-shadow"
+          >
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="font-semibold">Generate Today's Meal Plan</p>
+              <p className="text-sm text-pink-100">AI-powered nutrition for you</p>
+            </div>
+            <ChevronRight className="w-6 h-6 ml-auto" />
+          </Link>
+
+          {/* Chat with AI */}
+          <Link
+            href="/dashboard/chat"
+            className="bg-gradient-to-r from-violet-500 to-purple-500 rounded-2xl p-5 text-white flex items-center gap-4 hover:shadow-lg transition-shadow"
+          >
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+              <MessageCircle className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="font-semibold">Chat with Bloom</p>
+              <p className="text-sm text-violet-100">Your AI pregnancy companion</p>
+            </div>
+            <ChevronRight className="w-6 h-6 ml-auto" />
+          </Link>
+        </div>
+
+        {/* Hydration Tracker */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-              <Calendar className="w-5 h-5" />
-              This Week
-            </h2>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  const newDate = new Date(currentWeekStart);
-                  newDate.setDate(newDate.getDate() - 7);
-                  setCurrentWeekStart(newDate);
-                }}
-                className="p-2 hover:bg-gray-100 rounded-lg"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => {
-                  const newDate = new Date(currentWeekStart);
-                  newDate.setDate(newDate.getDate() + 7);
-                  setCurrentWeekStart(newDate);
-                }}
-                className="p-2 hover:bg-gray-100 rounded-lg"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="grid grid-cols-7 gap-2">
-              {getWeekDates().map((date, i) => (
-                <div
-                  key={i}
-                  className={`text-center p-3 rounded-xl ${
-                    isToday(date)
-                      ? 'bg-purple-500 text-white'
-                      : isPast(date)
-                      ? 'bg-gray-50 text-gray-400'
-                      : 'bg-gray-50 text-gray-700'
-                  }`}
-                >
-                  <p className="text-xs font-medium mb-1">{weekDays[i]}</p>
-                  <p className="text-lg font-bold">{date.getDate()}</p>
-                  {isPast(date) && !isToday(date) && (
-                    <CheckCircle className="w-4 h-4 mx-auto mt-1 text-green-500" />
-                  )}
-                  {isToday(date) && <div className="w-2 h-2 bg-white rounded-full mx-auto mt-1" />}
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Grocery List */}
-        <section className="mb-10">
-          <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2 mb-4">
-            <ShoppingCart className="w-5 h-5" />
-            Weekly Grocery List
-          </h2>
-
-          <div className="card">
-            <p className="text-gray-600 mb-4">Based on your meal plan this week:</p>
-            <div className="grid md:grid-cols-3 gap-6">
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2">Proteins</h4>
-                <ul className="space-y-1">
-                  {groceryList.proteins.map((item, i) => (
-                    <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
-                      <input type="checkbox" className="rounded text-purple-600" />
-                      {item.item} - {item.quantity}
-                    </li>
-                  ))}
-                </ul>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                <Droplets className="w-5 h-5 text-blue-500" />
               </div>
               <div>
-                <h4 className="font-medium text-gray-900 mb-2">Vegetables</h4>
-                <ul className="space-y-1">
-                  {groceryList.vegetables.map((item, i) => (
-                    <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
-                      <input type="checkbox" className="rounded text-purple-600" />
-                      {item.item} - {item.quantity}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2">Fruits</h4>
-                <ul className="space-y-1">
-                  {groceryList.fruits.map((item, i) => (
-                    <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
-                      <input type="checkbox" className="rounded text-purple-600" />
-                      {item.item} - {item.quantity}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2">Dairy</h4>
-                <ul className="space-y-1">
-                  {groceryList.dairy.map((item, i) => (
-                    <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
-                      <input type="checkbox" className="rounded text-purple-600" />
-                      {item.item} - {item.quantity}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2">Grains</h4>
-                <ul className="space-y-1">
-                  {groceryList.grains.map((item, i) => (
-                    <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
-                      <input type="checkbox" className="rounded text-purple-600" />
-                      {item.item} - {item.quantity}
-                    </li>
-                  ))}
-                </ul>
+                <h3 className="font-semibold text-gray-900">Hydration Tracker</h3>
+                <p className="text-sm text-gray-500">
+                  {hydrationCount}/{profile?.waterIntakeGoal || 8} glasses today
+                </p>
               </div>
             </div>
-            <button className="mt-6 py-2 px-4 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200">
-              📋 Copy List
+            <button
+              onClick={() => setHydrationCount(Math.min(hydrationCount + 1, 12))}
+              className="px-4 py-2 bg-blue-500 text-white rounded-xl text-sm font-medium hover:bg-blue-600 transition-colors"
+            >
+              + Add Glass
             </button>
           </div>
-        </section>
-
-        {/* Monthly Staples */}
-        <section className="mb-10">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            Monthly Staples (Month {care.pregnancyInfo.month})
-          </h2>
-
-          <div className="card">
-            <p className="text-gray-600 mb-4">Essential nutrients for your baby's development:</p>
-            <div className="grid md:grid-cols-4 gap-6">
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
-                  🥬 Iron-rich Foods
-                </h4>
-                <ul className="space-y-1">
-                  {monthlyStaples.ironRich.map((item, i) => (
-                    <li key={i} className="text-sm text-gray-600">
-                      • {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
-                  🥛 Calcium Sources
-                </h4>
-                <ul className="space-y-1">
-                  {monthlyStaples.calciumSources.map((item, i) => (
-                    <li key={i} className="text-sm text-gray-600">
-                      • {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
-                  🐟 Omega-3
-                </h4>
-                <ul className="space-y-1">
-                  {monthlyStaples.omega3.map((item, i) => (
-                    <li key={i} className="text-sm text-gray-600">
-                      • {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
-                  🥗 Folate
-                </h4>
-                <ul className="space-y-1">
-                  {monthlyStaples.folate.map((item, i) => (
-                    <li key={i} className="text-sm text-gray-600">
-                      • {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
+          <div className="flex gap-2">
+            {Array.from({ length: profile?.waterIntakeGoal || 8 }).map((_, i) => (
+              <div
+                key={i}
+                className={`flex-1 h-3 rounded-full transition-colors ${
+                  i < hydrationCount ? 'bg-blue-500' : 'bg-gray-100'
+                }`}
+              />
+            ))}
           </div>
-        </section>
+        </div>
 
         {/* Disclaimer */}
         <div className="bg-gray-50 rounded-xl p-4 text-center">
-          <p className="text-sm text-gray-500 flex items-center justify-center gap-2">
-            <Shield className="w-4 h-4" />
-            <strong>Disclaimer:</strong> This is guidance only, not medical advice. Always consult
-            your healthcare provider.
+          <p className="text-xs text-gray-500">
+            <strong>Disclaimer:</strong> BirthTech.ai provides general wellness information, not medical advice.
+            Always consult your healthcare provider for medical decisions.
           </p>
         </div>
       </main>

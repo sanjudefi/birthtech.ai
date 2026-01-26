@@ -52,37 +52,90 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { pregnancyMonth, dueDate, heightCm, weightKg, dietPreference, allergies } = body;
+    const {
+      // Basic Info
+      pregnancyMonth,
+      dueDate,
+      lastPeriodDate,
+      // Physical
+      heightCm,
+      weightKg,
+      prePregnancyWeight,
+      bloodType,
+      // Diet
+      dietPreference,
+      allergies,
+      foodAversions,
+      // Medical
+      existingConditions,
+      currentMedications,
+      previousPregnancies,
+      complications,
+      // Doctor Info
+      doctorName,
+      doctorPhone,
+      hospitalName,
+      // Preferences
+      exerciseLevel,
+      sleepHours,
+      waterIntakeGoal,
+    } = body;
 
-    // Check if profile already exists
-    const existingProfile = await prisma.pregnancyProfile.findUnique({
+    // Check if profile already exists - use upsert instead of error
+    const profile = await prisma.pregnancyProfile.upsert({
       where: { userId },
-    });
-
-    if (existingProfile) {
-      return NextResponse.json(
-        { error: 'Profile already exists. Use PUT to update.' },
-        { status: 400 }
-      );
-    }
-
-    const profile = await prisma.pregnancyProfile.create({
-      data: {
+      update: {
+        pregnancyMonth,
+        dueDate: dueDate ? new Date(dueDate) : undefined,
+        lastPeriodDate: lastPeriodDate ? new Date(lastPeriodDate) : undefined,
+        heightCm,
+        weightKg,
+        prePregnancyWeight,
+        bloodType,
+        dietPreference,
+        allergies: allergies || [],
+        foodAversions: foodAversions || [],
+        existingConditions: existingConditions || [],
+        currentMedications: currentMedications || [],
+        previousPregnancies: previousPregnancies || 0,
+        complications: complications || [],
+        doctorName,
+        doctorPhone,
+        hospitalName,
+        exerciseLevel,
+        sleepHours,
+        waterIntakeGoal,
+      },
+      create: {
         userId,
         pregnancyMonth,
         dueDate: new Date(dueDate),
+        lastPeriodDate: lastPeriodDate ? new Date(lastPeriodDate) : null,
         heightCm,
         weightKg,
-        dietPreference,
+        prePregnancyWeight,
+        bloodType,
+        dietPreference: dietPreference || 'non-veg',
         allergies: allergies || [],
+        foodAversions: foodAversions || [],
+        existingConditions: existingConditions || [],
+        currentMedications: currentMedications || [],
+        previousPregnancies: previousPregnancies || 0,
+        complications: complications || [],
+        doctorName,
+        doctorPhone,
+        hospitalName,
+        exerciseLevel: exerciseLevel || 'moderate',
+        sleepHours,
+        waterIntakeGoal: waterIntakeGoal || 8,
       },
     });
 
     return NextResponse.json(profile, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create profile error:', error);
     return NextResponse.json(
-      { error: 'Something went wrong' },
+      { error: 'Something went wrong', details: error.message },
       { status: 500 }
     );
   }
@@ -96,25 +149,41 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { pregnancyMonth, dueDate, heightCm, weightKg, dietPreference, allergies } = body;
+
+    // Build update data dynamically - only include fields that are provided
+    const updateData: any = {};
+
+    if (body.pregnancyMonth !== undefined) updateData.pregnancyMonth = body.pregnancyMonth;
+    if (body.dueDate !== undefined) updateData.dueDate = new Date(body.dueDate);
+    if (body.lastPeriodDate !== undefined) updateData.lastPeriodDate = body.lastPeriodDate ? new Date(body.lastPeriodDate) : null;
+    if (body.heightCm !== undefined) updateData.heightCm = body.heightCm;
+    if (body.weightKg !== undefined) updateData.weightKg = body.weightKg;
+    if (body.prePregnancyWeight !== undefined) updateData.prePregnancyWeight = body.prePregnancyWeight;
+    if (body.bloodType !== undefined) updateData.bloodType = body.bloodType;
+    if (body.dietPreference !== undefined) updateData.dietPreference = body.dietPreference;
+    if (body.allergies !== undefined) updateData.allergies = body.allergies;
+    if (body.foodAversions !== undefined) updateData.foodAversions = body.foodAversions;
+    if (body.existingConditions !== undefined) updateData.existingConditions = body.existingConditions;
+    if (body.currentMedications !== undefined) updateData.currentMedications = body.currentMedications;
+    if (body.previousPregnancies !== undefined) updateData.previousPregnancies = body.previousPregnancies;
+    if (body.complications !== undefined) updateData.complications = body.complications;
+    if (body.doctorName !== undefined) updateData.doctorName = body.doctorName;
+    if (body.doctorPhone !== undefined) updateData.doctorPhone = body.doctorPhone;
+    if (body.hospitalName !== undefined) updateData.hospitalName = body.hospitalName;
+    if (body.exerciseLevel !== undefined) updateData.exerciseLevel = body.exerciseLevel;
+    if (body.sleepHours !== undefined) updateData.sleepHours = body.sleepHours;
+    if (body.waterIntakeGoal !== undefined) updateData.waterIntakeGoal = body.waterIntakeGoal;
 
     const profile = await prisma.pregnancyProfile.update({
       where: { userId },
-      data: {
-        pregnancyMonth,
-        dueDate: dueDate ? new Date(dueDate) : undefined,
-        heightCm,
-        weightKg,
-        dietPreference,
-        allergies: allergies || [],
-      },
+      data: updateData,
     });
 
     return NextResponse.json(profile);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Update profile error:', error);
     return NextResponse.json(
-      { error: 'Something went wrong' },
+      { error: 'Something went wrong', details: error.message },
       { status: 500 }
     );
   }
