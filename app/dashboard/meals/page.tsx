@@ -21,6 +21,9 @@ import {
   Apple,
   Check,
   Download,
+  History,
+  X,
+  Eye,
 } from 'lucide-react';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -44,11 +47,20 @@ interface MealItem {
 interface WeeklyMeals {
   [day: string]: {
     breakfast: MealItem;
-    snack1: MealItem;
+    snack1?: MealItem;
     lunch: MealItem;
-    snack2: MealItem;
+    snack2?: MealItem;
     dinner: MealItem;
+    snacks?: MealItem[];
   };
+}
+
+interface WeeklyPlanRecord {
+  id: string;
+  weekStart: string;
+  weekEnd: string;
+  meals: any;
+  createdAt: string;
 }
 
 function MealsContent() {
@@ -58,6 +70,9 @@ function MealsContent() {
   const [loading, setLoading] = useState(false);
   const [selectedMeal, setSelectedMeal] = useState<{ day: string; meal: string } | null>(null);
   const [weekOffset, setWeekOffset] = useState(0);
+  const [history, setHistory] = useState<WeeklyPlanRecord[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -66,10 +81,68 @@ function MealsContent() {
       return;
     }
 
+    fetchHistory(token);
+
     if (searchParams.get('generate') === 'true') {
       generateWeeklyPlan();
     }
   }, [router, searchParams]);
+
+  const fetchHistory = async (token: string) => {
+    try {
+      const res = await fetch('/api/ai/weekly-meal-plan', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setHistory(data.plans || []);
+
+        // Load current week's plan if exists
+        const currentWeek = getWeekStart(new Date());
+        const currentPlan = data.plans?.find((p: WeeklyPlanRecord) =>
+          new Date(p.weekStart).toDateString() === currentWeek.toDateString()
+        );
+        if (currentPlan) {
+          loadPlanFromRecord(currentPlan);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching history:', error);
+    }
+  };
+
+  const loadPlanFromRecord = (record: WeeklyPlanRecord) => {
+    setCurrentPlanId(record.id);
+    const meals = record.meals;
+
+    // Transform API response to component format
+    const transformed: WeeklyMeals = {};
+    DAYS.forEach((day) => {
+      const dayKey = day.toLowerCase();
+      const dayData = meals[dayKey] || meals[day];
+      if (dayData) {
+        transformed[dayKey] = {
+          breakfast: dayData.breakfast || { name: 'Not planned' },
+          snack1: dayData.snacks?.[0] || { name: 'Fruit & nuts' },
+          lunch: dayData.lunch || { name: 'Not planned' },
+          snack2: dayData.snacks?.[1] || { name: 'Yogurt' },
+          dinner: dayData.dinner || { name: 'Not planned' },
+        };
+      }
+    });
+
+    setWeeklyPlan(transformed);
+    setShowHistory(false);
+  };
+
+  const getWeekStart = (date: Date): Date => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    d.setDate(diff);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
 
   const getWeekDates = () => {
     const today = new Date();
@@ -104,19 +177,20 @@ function MealsContent() {
 
     setLoading(true);
     try {
-      const res = await fetch('/api/ai/weekly-meals', {
+      const res = await fetch('/api/ai/weekly-meal-plan', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ weekStart: weekStart.toISOString() }),
       });
 
       const data = await res.json();
 
-      if (res.ok && data.meals) {
-        setWeeklyPlan(data.meals);
+      if (res.ok && data.plan) {
+        loadPlanFromRecord(data.plan);
+        // Refresh history
+        fetchHistory(token);
       } else {
         throw new Error(data.error || 'Failed to generate meal plan');
       }
@@ -149,6 +223,11 @@ function MealsContent() {
     setWeeklyPlan(sampleMeals);
   };
 
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50">
       {/* Header */}
@@ -172,16 +251,27 @@ function MealsContent() {
             </div>
           </div>
 
-          {weeklyPlan && (
-            <button
-              onClick={generateWeeklyPlan}
-              disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 text-sm text-purple-600 hover:bg-purple-50 rounded-xl transition-colors"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Regenerate
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {history.length > 0 && (
+              <button
+                onClick={() => setShowHistory(true)}
+                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+              >
+                <History className="w-4 h-4" />
+                History ({history.length})
+              </button>
+            )}
+            {weeklyPlan && (
+              <button
+                onClick={generateWeeklyPlan}
+                disabled={loading}
+                className="flex items-center gap-2 px-4 py-2 text-sm text-purple-600 hover:bg-purple-50 rounded-xl transition-colors"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                Regenerate
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -230,6 +320,11 @@ function MealsContent() {
               <Sparkles className="w-6 h-6" />
               Generate My Meal Plan
             </button>
+            {history.length > 0 && (
+              <p className="text-sm text-gray-500 mt-4">
+                Or <button onClick={() => setShowHistory(true)} className="text-purple-600 hover:underline">view your past plans</button>
+              </p>
+            )}
           </div>
         )}
 
@@ -447,6 +542,69 @@ function MealsContent() {
                   </>
                 );
               })()}
+            </div>
+          </div>
+        )}
+
+        {/* History Modal */}
+        {showHistory && (
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowHistory(false)}
+          >
+            <div
+              className="bg-white rounded-2xl w-full max-w-lg max-h-[80vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <History className="w-5 h-5 text-purple-600" />
+                  <h3 className="font-semibold text-gray-900">Meal Plan History</h3>
+                </div>
+                <button
+                  onClick={() => setShowHistory(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              <div className="overflow-y-auto max-h-[calc(80vh-80px)] p-4">
+                {history.length === 0 ? (
+                  <p className="text-center text-gray-500 py-8">No meal plans generated yet</p>
+                ) : (
+                  <div className="space-y-3">
+                    {history.map((plan) => (
+                      <button
+                        key={plan.id}
+                        onClick={() => loadPlanFromRecord(plan)}
+                        className={`w-full p-4 rounded-xl border text-left hover:border-purple-300 transition-colors ${
+                          currentPlanId === plan.id ? 'border-purple-500 bg-purple-50' : 'border-gray-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {formatDate(plan.weekStart)} - {formatDate(plan.weekEnd)}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              Generated {formatDate(plan.createdAt)}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {currentPlanId === plan.id && (
+                              <span className="px-2 py-1 bg-purple-100 text-purple-600 text-xs font-medium rounded-full">
+                                Current
+                              </span>
+                            )}
+                            <Eye className="w-5 h-5 text-gray-400" />
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

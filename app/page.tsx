@@ -66,12 +66,11 @@ export default function Home() {
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <Image
-              src="https://thebirthtech.com/wp-content/uploads/2017/06/birthtechlogo-2.png"
+              src="/images/logo/BirthTech-V2_Final 2.png"
               alt="BirthTech Logo"
               width={140}
               height={40}
               className="h-10 w-auto"
-              unoptimized
             />
           </Link>
           <nav className="hidden md:flex items-center gap-6">
@@ -346,12 +345,11 @@ export default function Home() {
             {/* Logo & Description */}
             <div className="md:col-span-2">
               <Image
-                src="https://thebirthtech.com/wp-content/uploads/2017/06/birthtechlogo-2.png"
+                src="/images/logo/BirthTech-V2_Final 2.png"
                 alt="BirthTech Logo"
                 width={140}
                 height={40}
                 className="h-10 w-auto mb-4 brightness-0 invert"
-                unoptimized
               />
               <p className="text-gray-400 text-sm max-w-md">
                 Your trusted AI companion for a healthy pregnancy journey. Personalized care plans, nutrition guidance, and wellness tips.

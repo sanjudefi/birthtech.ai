@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -8,15 +8,26 @@ import {
   ArrowLeft,
   FileText,
   Upload,
-  File,
-  Image,
-  Trash2,
-  Eye,
-  Calendar,
   Loader2,
+  Sparkles,
+  AlertTriangle,
+  CheckCircle,
+  X,
+  Eye,
+  Trash2,
+  Calendar,
+  Utensils,
+  Dumbbell,
+  FileSearch,
+  ChevronRight,
+  Plus,
+  Clock,
+  AlertCircle,
+  Check,
+  History,
 } from 'lucide-react';
 
-interface Report {
+interface MedicalReport {
   id: string;
   fileName: string;
   fileType: string;
@@ -27,24 +38,52 @@ interface Report {
   createdAt: string;
 }
 
-const reportTypes = [
-  { value: 'ultrasound', label: 'Ultrasound', icon: '' },
-  { value: 'blood_test', label: 'Blood Test', icon: '' },
-  { value: 'prescription', label: 'Prescription', icon: '' },
-  { value: 'general', label: 'General Report', icon: '' },
+interface ReportAnalysis {
+  summary?: {
+    keyFindings: string[];
+    normalResults: string[];
+    attentionNeeded: string[];
+    recommendations: string[];
+  };
+  dietPlan?: {
+    focus: string;
+    recommendations: { food: string; reason: string; frequency: string }[];
+    avoid: { item: string; reason: string }[];
+    sampleMeals: { breakfast: string; lunch: string; dinner: string };
+  };
+  workoutPlan?: {
+    intensity: string;
+    focus: string;
+    exercises: { name: string; duration: string; benefit: string; precaution: string }[];
+    avoid: string[];
+    weeklySchedule: string;
+  };
+}
+
+const REPORT_TYPES = [
+  { value: 'ultrasound', label: 'Ultrasound' },
+  { value: 'blood_test', label: 'Blood Test' },
+  { value: 'general', label: 'General Check-up' },
+  { value: 'prescription', label: 'Prescription' },
+  { value: 'glucose', label: 'Glucose Test' },
+  { value: 'urine', label: 'Urine Test' },
 ];
 
 export default function ReportsPage() {
   const router = useRouter();
-  const [reports, setReports] = useState<Report[]>([]);
+  const [reports, setReports] = useState<MedicalReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [showUpload, setShowUpload] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [selectedReport, setSelectedReport] = useState<MedicalReport | null>(null);
+  const [analysis, setAnalysis] = useState<ReportAnalysis | null>(null);
+  const [activeTab, setActiveTab] = useState<'summary' | 'diet' | 'workout'>('summary');
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadForm, setUploadForm] = useState({
+    fileName: '',
     reportType: 'general',
     reportDate: new Date().toISOString().split('T')[0],
-    notes: '',
+    content: '',
   });
 
   useEffect(() => {
@@ -61,7 +100,6 @@ export default function ReportsPage() {
       const res = await fetch('/api/reports', {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       if (res.ok) {
         const data = await res.json();
         setReports(data.reports || []);
@@ -73,24 +111,15 @@ export default function ReportsPage() {
     }
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-    }
-  };
-
   const handleUpload = async () => {
-    if (!selectedFile) return;
+    if (!uploadForm.fileName || !uploadForm.content) return;
 
     const token = localStorage.getItem('token');
     if (!token) return;
 
     setUploading(true);
-
     try {
-      // For now, create a placeholder entry
-      // In production, you'd upload to cloud storage
+      // Create report record
       const res = await fetch('/api/reports', {
         method: 'POST',
         headers: {
@@ -98,62 +127,110 @@ export default function ReportsPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          fileName: selectedFile.name,
-          fileType: selectedFile.type.includes('pdf') ? 'pdf' : 'image',
-          ...uploadForm,
+          fileName: uploadForm.fileName,
+          fileType: 'text',
+          reportType: uploadForm.reportType,
+          reportDate: uploadForm.reportDate,
+          notes: uploadForm.content,
         }),
       });
 
       if (res.ok) {
-        const data = await res.json();
-        setReports((prev) => [data.report, ...prev]);
-        setShowUpload(false);
-        setSelectedFile(null);
+        const { report } = await res.json();
+
+        // Analyze the report
+        setAnalyzing(true);
+        setShowUploadModal(false);
+        setSelectedReport(report);
+
+        const analysisRes = await fetch('/api/ai/analyze-report', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            reportId: report.id,
+            reportContent: uploadForm.content,
+            reportType: uploadForm.reportType,
+          }),
+        });
+
+        if (analysisRes.ok) {
+          const analysisData = await analysisRes.json();
+          setAnalysis(analysisData.analysis);
+          setActiveTab('summary');
+        }
+
+        // Refresh reports list
+        fetchReports(token);
         setUploadForm({
+          fileName: '',
           reportType: 'general',
           reportDate: new Date().toISOString().split('T')[0],
-          notes: '',
+          content: '',
         });
       }
     } catch (error) {
       console.error('Error uploading report:', error);
-      alert('Failed to upload report. Please try again.');
     } finally {
       setUploading(false);
+      setAnalyzing(false);
     }
   };
 
-  const deleteReport = async (id: string) => {
+  const viewReportAnalysis = async (report: MedicalReport) => {
     const token = localStorage.getItem('token');
     if (!token) return;
 
-    if (!confirm('Are you sure you want to delete this report?')) return;
+    setSelectedReport(report);
+    setAnalyzing(true);
+    setAnalysis(null);
 
     try {
-      const res = await fetch(`/api/reports?id=${id}`, {
+      const res = await fetch(`/api/ai/analyze-report?reportId=${report.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setAnalysis(data.analysis);
+      }
+    } catch (error) {
+      console.error('Error fetching analysis:', error);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const deleteReport = async (reportId: string) => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const res = await fetch(`/api/reports?id=${reportId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (res.ok) {
-        setReports((prev) => prev.filter((r) => r.id !== id));
+        setReports(reports.filter((r) => r.id !== reportId));
+        if (selectedReport?.id === reportId) {
+          setSelectedReport(null);
+          setAnalysis(null);
+        }
       }
     } catch (error) {
       console.error('Error deleting report:', error);
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-CA', {
-      year: 'numeric',
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
+      year: 'numeric',
     });
-  };
-
-  const getFileIcon = (fileType: string) => {
-    if (fileType === 'pdf') return FileText;
-    return Image;
   };
 
   if (loading) {
@@ -171,219 +248,533 @@ export default function ReportsPage() {
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50">
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Link
-            href="/dashboard"
-            className="p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-full"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <div className="flex items-center gap-3 flex-1">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center">
-              <FileText className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="font-semibold text-gray-900">Medical Reports</h1>
-              <p className="text-xs text-gray-500">Upload & track your documents</p>
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link
+              href="/dashboard"
+              className="p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-full"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
+                <FileText className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="font-semibold text-gray-900">Medical Reports</h1>
+                <p className="text-xs text-gray-500">Upload & analyze your reports</p>
+              </div>
             </div>
           </div>
+
           <button
-            onClick={() => setShowUpload(true)}
-            className="px-4 py-2 bg-blue-500 text-white rounded-xl text-sm font-medium hover:bg-blue-600 transition-colors flex items-center gap-2"
+            onClick={() => setShowUploadModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
           >
-            <Upload className="w-4 h-4" />
-            Upload
+            <Plus className="w-5 h-5" />
+            Upload Report
           </button>
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-6">
-        {/* Empty State */}
-        {reports.length === 0 && (
-          <div className="text-center py-12">
-            <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <FileText className="w-10 h-10 text-white" />
-            </div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Keep Your Records Safe</h2>
-            <p className="text-gray-600 mb-6 max-w-md mx-auto">
-              Upload your pregnancy reports, ultrasounds, and prescriptions to track your journey.
-            </p>
-            <button
-              onClick={() => setShowUpload(true)}
-              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl font-medium hover:shadow-lg transition-shadow flex items-center gap-2 mx-auto"
-            >
-              <Upload className="w-5 h-5" />
-              Upload Your First Report
-            </button>
-          </div>
-        )}
+      <main className="max-w-6xl mx-auto px-4 py-6">
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Left: Reports List */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <div className="p-4 border-b border-gray-100">
+                <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+                  <History className="w-5 h-5 text-purple-600" />
+                  Your Reports ({reports.length})
+                </h2>
+              </div>
 
-        {/* Reports List */}
-        {reports.length > 0 && (
-          <div className="space-y-4">
-            {reports.map((report) => {
-              const FileIcon = getFileIcon(report.fileType);
-              const typeInfo = reportTypes.find((t) => t.value === report.reportType);
-
-              return (
-                <div key={report.id} className="bg-white rounded-2xl p-4 shadow-sm">
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <FileIcon className="w-6 h-6 text-blue-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h3 className="font-medium text-gray-900 truncate">{report.fileName}</h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                              {typeInfo?.icon} {typeInfo?.label || report.reportType}
-                            </span>
-                            <span className="text-xs text-gray-500 flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              {formatDate(report.reportDate || report.createdAt)}
-                            </span>
+              <div className="max-h-[60vh] overflow-y-auto">
+                {reports.length === 0 ? (
+                  <div className="p-8 text-center">
+                    <FileSearch className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500">No reports uploaded yet</p>
+                    <button
+                      onClick={() => setShowUploadModal(true)}
+                      className="mt-4 text-purple-600 hover:underline text-sm"
+                    >
+                      Upload your first report
+                    </button>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-100">
+                    {reports.map((report) => (
+                      <div
+                        key={report.id}
+                        className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
+                          selectedReport?.id === report.id ? 'bg-purple-50' : ''
+                        }`}
+                        onClick={() => viewReportAnalysis(report)}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 truncate">{report.fileName}</p>
+                            <p className="text-sm text-gray-500 capitalize">
+                              {report.reportType.replace('_', ' ')}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Calendar className="w-3 h-3 text-gray-400" />
+                              <span className="text-xs text-gray-400">
+                                {formatDate(report.createdAt)}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {report.aiSummary && (
+                              <span className="px-2 py-1 bg-green-100 text-green-600 text-xs rounded-full">
+                                Analyzed
+                              </span>
+                            )}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteReport(report.id);
+                              }}
+                              className="p-1 hover:bg-red-100 rounded text-gray-400 hover:text-red-500"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
-                        <button
-                          onClick={() => deleteReport(report.id)}
-                          className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
                       </div>
-                      {report.notes && (
-                        <p className="mt-2 text-sm text-gray-600">{report.notes}</p>
-                      )}
-                      {report.aiSummary && (
-                        <div className="mt-2 text-sm bg-purple-50 text-purple-700 p-2 rounded-lg">
-                          <strong>AI Summary:</strong> {report.aiSummary}
-                        </div>
-                      )}
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Analysis with 3 Tabs */}
+          <div className="lg:col-span-2">
+            {selectedReport ? (
+              <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                {/* Report Header */}
+                <div className="p-4 border-b border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="font-semibold text-gray-900">{selectedReport.fileName}</h2>
+                      <p className="text-sm text-gray-500 capitalize">
+                        {selectedReport.reportType.replace('_', ' ')} • {formatDate(selectedReport.createdAt)}
+                      </p>
                     </div>
+                    <button
+                      onClick={() => {
+                        setSelectedReport(null);
+                        setAnalysis(null);
+                      }}
+                      className="p-2 hover:bg-gray-100 rounded-full"
+                    >
+                      <X className="w-5 h-5 text-gray-500" />
+                    </button>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
 
-        {/* Upload Modal */}
-        {showUpload && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Upload Report</h2>
+                {/* 3 Tabs */}
+                <div className="flex border-b border-gray-100">
+                  <button
+                    onClick={() => setActiveTab('summary')}
+                    className={`flex-1 px-4 py-3 flex items-center justify-center gap-2 font-medium transition-colors ${
+                      activeTab === 'summary'
+                        ? 'text-purple-600 border-b-2 border-purple-600 bg-purple-50'
+                        : 'text-gray-500 hover:bg-gray-50'
+                    }`}
+                  >
+                    <FileSearch className="w-5 h-5" />
+                    Summary
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('diet')}
+                    className={`flex-1 px-4 py-3 flex items-center justify-center gap-2 font-medium transition-colors ${
+                      activeTab === 'diet'
+                        ? 'text-pink-600 border-b-2 border-pink-600 bg-pink-50'
+                        : 'text-gray-500 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Utensils className="w-5 h-5" />
+                    Diet Plan
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('workout')}
+                    className={`flex-1 px-4 py-3 flex items-center justify-center gap-2 font-medium transition-colors ${
+                      activeTab === 'workout'
+                        ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50'
+                        : 'text-gray-500 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Dumbbell className="w-5 h-5" />
+                    Workout
+                  </button>
+                </div>
 
-              <div className="space-y-4">
-                {/* File Input */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">File</label>
-                  {!selectedFile ? (
-                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-blue-500 transition-colors">
-                      <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                      <span className="text-sm text-gray-500">Click to select file</span>
-                      <span className="text-xs text-gray-400 mt-1">PDF, JPG, PNG</span>
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={handleFileSelect}
-                      />
-                    </label>
-                  ) : (
-                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                      <File className="w-8 h-8 text-blue-500" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 truncate">{selectedFile.name}</p>
-                        <p className="text-xs text-gray-500">
-                          {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => setSelectedFile(null)}
-                        className="p-1 text-gray-400 hover:text-red-500"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                {/* Tab Content */}
+                <div className="p-4 max-h-[60vh] overflow-y-auto">
+                  {analyzing ? (
+                    <div className="text-center py-12">
+                      <Loader2 className="w-12 h-12 text-purple-500 mx-auto animate-spin" />
+                      <p className="mt-4 text-gray-600">Analyzing your report...</p>
+                      <p className="text-sm text-gray-400 mt-2">Generating personalized recommendations</p>
                     </div>
+                  ) : !analysis || (!analysis.summary && !analysis.dietPlan && !analysis.workoutPlan) ? (
+                    <div className="text-center py-12">
+                      <AlertCircle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                      <p className="text-gray-500 mb-4">No analysis available for this report</p>
+                      <p className="text-sm text-gray-400">Upload report content to get AI analysis</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Summary Tab */}
+                      {activeTab === 'summary' && analysis.summary && (
+                        <div className="space-y-6">
+                          {analysis.summary.keyFindings?.length > 0 && (
+                            <div>
+                              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                                <Sparkles className="w-5 h-5 text-purple-500" />
+                                Key Findings
+                              </h3>
+                              <div className="space-y-2">
+                                {analysis.summary.keyFindings.map((finding, i) => (
+                                  <div key={i} className="flex items-start gap-2 p-3 bg-purple-50 rounded-xl">
+                                    <Check className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                                    <p className="text-gray-700">{finding}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {analysis.summary.normalResults?.length > 0 && (
+                            <div>
+                              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                                <CheckCircle className="w-5 h-5 text-green-500" />
+                                Normal Results
+                              </h3>
+                              <div className="space-y-2">
+                                {analysis.summary.normalResults.map((result, i) => (
+                                  <div key={i} className="flex items-start gap-2 p-3 bg-green-50 rounded-xl">
+                                    <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                                    <p className="text-gray-700">{result}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {analysis.summary.attentionNeeded?.length > 0 && (
+                            <div>
+                              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                                <AlertTriangle className="w-5 h-5 text-amber-500" />
+                                Needs Attention
+                              </h3>
+                              <div className="space-y-2">
+                                {analysis.summary.attentionNeeded.map((item, i) => (
+                                  <div key={i} className="flex items-start gap-2 p-3 bg-amber-50 rounded-xl">
+                                    <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                                    <p className="text-gray-700">{item}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {analysis.summary.recommendations?.length > 0 && (
+                            <div>
+                              <h3 className="font-semibold text-gray-900 mb-3">Recommendations</h3>
+                              <ul className="space-y-2">
+                                {analysis.summary.recommendations.map((rec, i) => (
+                                  <li key={i} className="flex items-start gap-2 text-gray-700">
+                                    <ChevronRight className="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" />
+                                    {rec}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Diet Plan Tab */}
+                      {activeTab === 'diet' && analysis.dietPlan && (
+                        <div className="space-y-6">
+                          {analysis.dietPlan.focus && (
+                            <div className="bg-pink-50 rounded-xl p-4">
+                              <h3 className="font-semibold text-pink-700 mb-2">Focus Area</h3>
+                              <p className="text-gray-700">{analysis.dietPlan.focus}</p>
+                            </div>
+                          )}
+
+                          {analysis.dietPlan.recommendations?.length > 0 && (
+                            <div>
+                              <h3 className="font-semibold text-gray-900 mb-3">Recommended Foods</h3>
+                              <div className="space-y-3">
+                                {analysis.dietPlan.recommendations.map((rec, i) => (
+                                  <div key={i} className="p-4 bg-gray-50 rounded-xl">
+                                    <div className="flex items-start justify-between">
+                                      <div>
+                                        <p className="font-medium text-gray-900">{rec.food}</p>
+                                        <p className="text-sm text-gray-600">{rec.reason}</p>
+                                      </div>
+                                      <span className="text-xs bg-pink-100 text-pink-600 px-2 py-1 rounded-full">
+                                        {rec.frequency}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {analysis.dietPlan.avoid?.length > 0 && (
+                            <div>
+                              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                                <AlertTriangle className="w-5 h-5 text-red-500" />
+                                Foods to Avoid
+                              </h3>
+                              <div className="space-y-2">
+                                {analysis.dietPlan.avoid.map((item, i) => (
+                                  <div key={i} className="flex items-start gap-2 p-3 bg-red-50 rounded-xl">
+                                    <X className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                                    <div>
+                                      <p className="font-medium text-gray-900">{item.item}</p>
+                                      <p className="text-sm text-gray-600">{item.reason}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {analysis.dietPlan.sampleMeals && (
+                            <div>
+                              <h3 className="font-semibold text-gray-900 mb-3">Sample Day</h3>
+                              <div className="grid gap-3">
+                                <div className="p-3 bg-amber-50 rounded-xl">
+                                  <p className="text-xs text-amber-600 font-medium">BREAKFAST</p>
+                                  <p className="text-gray-900">{analysis.dietPlan.sampleMeals.breakfast}</p>
+                                </div>
+                                <div className="p-3 bg-orange-50 rounded-xl">
+                                  <p className="text-xs text-orange-600 font-medium">LUNCH</p>
+                                  <p className="text-gray-900">{analysis.dietPlan.sampleMeals.lunch}</p>
+                                </div>
+                                <div className="p-3 bg-indigo-50 rounded-xl">
+                                  <p className="text-xs text-indigo-600 font-medium">DINNER</p>
+                                  <p className="text-gray-900">{analysis.dietPlan.sampleMeals.dinner}</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Workout Tab */}
+                      {activeTab === 'workout' && analysis.workoutPlan && (
+                        <div className="space-y-6">
+                          <div className="grid grid-cols-2 gap-4">
+                            {analysis.workoutPlan.intensity && (
+                              <div className="bg-indigo-50 rounded-xl p-4">
+                                <p className="text-xs text-indigo-600 font-medium">INTENSITY</p>
+                                <p className="font-semibold text-gray-900">{analysis.workoutPlan.intensity}</p>
+                              </div>
+                            )}
+                            {analysis.workoutPlan.focus && (
+                              <div className="bg-purple-50 rounded-xl p-4">
+                                <p className="text-xs text-purple-600 font-medium">FOCUS</p>
+                                <p className="font-semibold text-gray-900">{analysis.workoutPlan.focus}</p>
+                              </div>
+                            )}
+                          </div>
+
+                          {analysis.workoutPlan.exercises?.length > 0 && (
+                            <div>
+                              <h3 className="font-semibold text-gray-900 mb-3">Recommended Exercises</h3>
+                              <div className="space-y-3">
+                                {analysis.workoutPlan.exercises.map((ex, i) => (
+                                  <div key={i} className="p-4 bg-gray-50 rounded-xl">
+                                    <div className="flex items-start justify-between mb-2">
+                                      <p className="font-medium text-gray-900">{ex.name}</p>
+                                      <span className="text-sm text-purple-600">{ex.duration}</span>
+                                    </div>
+                                    <p className="text-sm text-gray-600 mb-2">{ex.benefit}</p>
+                                    {ex.precaution && (
+                                      <p className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded inline-block">
+                                        {ex.precaution}
+                                      </p>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {analysis.workoutPlan.avoid?.length > 0 && (
+                            <div>
+                              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                                <AlertTriangle className="w-5 h-5 text-red-500" />
+                                Avoid
+                              </h3>
+                              <ul className="space-y-2">
+                                {analysis.workoutPlan.avoid.map((item, i) => (
+                                  <li key={i} className="flex items-center gap-2 text-gray-700">
+                                    <X className="w-4 h-4 text-red-500" />
+                                    {item}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {analysis.workoutPlan.weeklySchedule && (
+                            <div className="bg-gradient-to-r from-purple-500 to-indigo-500 rounded-xl p-4 text-white">
+                              <h3 className="font-semibold mb-2">Weekly Schedule</h3>
+                              <p>{analysis.workoutPlan.weeklySchedule}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 
-                {/* Report Type */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Report Type</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {reportTypes.map((type) => (
-                      <button
-                        key={type.value}
-                        onClick={() => setUploadForm({ ...uploadForm, reportType: type.value })}
-                        className={`p-3 rounded-xl text-sm text-left transition-colors ${
-                          uploadForm.reportType === type.value
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                      >
-                        <span className="mr-1">{type.icon}</span> {type.label}
-                      </button>
-                    ))}
-                  </div>
+                {/* Disclaimer */}
+                <div className="p-4 bg-gray-50 border-t border-gray-100">
+                  <p className="text-xs text-gray-500 text-center">
+                    This analysis is for informational purposes only. Always consult your healthcare provider for medical advice.
+                  </p>
                 </div>
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
+                <FileSearch className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">Select a Report</h2>
+                <p className="text-gray-500 mb-6">
+                  Click on a report to view its AI-powered analysis with personalized diet and workout recommendations.
+                </p>
+                <button
+                  onClick={() => setShowUploadModal(true)}
+                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-xl font-medium hover:shadow-lg transition-all flex items-center gap-2 mx-auto"
+                >
+                  <Upload className="w-5 h-5" />
+                  Upload New Report
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
 
-                {/* Report Date */}
+      {/* Upload Modal */}
+      {showUploadModal && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowUploadModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl w-full max-w-lg overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="font-semibold text-gray-900">Upload Medical Report</h3>
+              <button
+                onClick={() => setShowUploadModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-full"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Report Name
+                </label>
+                <input
+                  type="text"
+                  value={uploadForm.fileName}
+                  onChange={(e) => setUploadForm({ ...uploadForm, fileName: e.target.value })}
+                  placeholder="e.g., Blood Test Results - Jan 2026"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Report Date</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Report Type
+                  </label>
+                  <select
+                    value={uploadForm.reportType}
+                    onChange={(e) => setUploadForm({ ...uploadForm, reportType: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    {REPORT_TYPES.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Report Date
+                  </label>
                   <input
                     type="date"
                     value={uploadForm.reportDate}
                     onChange={(e) => setUploadForm({ ...uploadForm, reportDate: e.target.value })}
-                    className="input-field"
-                  />
-                </div>
-
-                {/* Notes */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Notes (optional)</label>
-                  <textarea
-                    value={uploadForm.notes}
-                    onChange={(e) => setUploadForm({ ...uploadForm, notes: e.target.value })}
-                    className="input-field min-h-[80px]"
-                    placeholder="Add any notes about this report..."
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
               </div>
 
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => {
-                    setShowUpload(false);
-                    setSelectedFile(null);
-                  }}
-                  className="btn-secondary flex-1"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleUpload}
-                  disabled={!selectedFile || uploading}
-                  className="btn-primary flex-1 flex items-center justify-center gap-2"
-                >
-                  {uploading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="w-4 h-4" />
-                      Upload
-                    </>
-                  )}
-                </button>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Report Content / Key Findings
+                </label>
+                <textarea
+                  value={uploadForm.content}
+                  onChange={(e) => setUploadForm({ ...uploadForm, content: e.target.value })}
+                  placeholder="Paste or type the key findings from your report here...&#10;&#10;Example:&#10;- Hemoglobin: 11.5 g/dL (slightly low)&#10;- Iron: 50 mcg/dL&#10;- Blood pressure: 120/80&#10;- Glucose: Normal"
+                  rows={8}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  Enter the main findings, values, or notes from your medical report for AI analysis
+                </p>
               </div>
             </div>
+
+            <div className="p-4 border-t border-gray-100 flex gap-3">
+              <button
+                onClick={() => setShowUploadModal(false)}
+                className="flex-1 py-3 border border-gray-200 rounded-xl font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpload}
+                disabled={!uploadForm.fileName || !uploadForm.content || uploading}
+                className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-xl font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-5 h-5" />
+                    Upload & Analyze
+                  </>
+                )}
+              </button>
+            </div>
           </div>
-        )}
-      </main>
+        </div>
+      )}
     </div>
   );
 }

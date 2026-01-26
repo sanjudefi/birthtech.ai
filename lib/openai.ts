@@ -252,4 +252,169 @@ export async function generateTipOfDay(profile: ProfileContext) {
   }
 }
 
+// Generate weekly meal plan with variety (different each week)
+export async function generateWeeklyMealPlan(profile: ProfileContext, weekNumber: number = 1) {
+  const weeklyPrompt = `You are a caring prenatal nutrition expert creating a FULL WEEKLY meal plan.
+
+Current Profile:
+- Pregnancy Month: ${profile.pregnancyMonth}
+- Diet Preference: ${profile.dietPreference}
+- Allergies: ${profile.allergies.length ? profile.allergies.join(', ') : 'None'}
+- Food Aversions: ${profile.foodAversions?.length ? profile.foodAversions.join(', ') : 'None'}
+- Health Conditions: ${profile.existingConditions.length ? profile.existingConditions.join(', ') : 'None'}
+
+IMPORTANT: This is Week #${weekNumber}. Generate COMPLETELY DIFFERENT meals from previous weeks.
+Use random seed: ${Date.now()} to ensure variety.
+
+Create 7 days of unique, varied meals. Include different cuisines, cooking methods, and ingredients each day.
+
+SAFETY RULES - NEVER suggest raw/undercooked foods, unpasteurized items, high-mercury fish, alcohol.
+
+Format as JSON:
+{
+  "weekNumber": ${weekNumber},
+  "monday": { "breakfast": { "name": "", "description": "", "benefits": "" }, "lunch": { "name": "", "description": "", "benefits": "" }, "dinner": { "name": "", "description": "", "benefits": "" }, "snacks": [{ "name": "", "benefits": "" }] },
+  "tuesday": { "breakfast": { "name": "", "description": "", "benefits": "" }, "lunch": { "name": "", "description": "", "benefits": "" }, "dinner": { "name": "", "description": "", "benefits": "" }, "snacks": [{ "name": "", "benefits": "" }] },
+  "wednesday": { "breakfast": { "name": "", "description": "", "benefits": "" }, "lunch": { "name": "", "description": "", "benefits": "" }, "dinner": { "name": "", "description": "", "benefits": "" }, "snacks": [{ "name": "", "benefits": "" }] },
+  "thursday": { "breakfast": { "name": "", "description": "", "benefits": "" }, "lunch": { "name": "", "description": "", "benefits": "" }, "dinner": { "name": "", "description": "", "benefits": "" }, "snacks": [{ "name": "", "benefits": "" }] },
+  "friday": { "breakfast": { "name": "", "description": "", "benefits": "" }, "lunch": { "name": "", "description": "", "benefits": "" }, "dinner": { "name": "", "description": "", "benefits": "" }, "snacks": [{ "name": "", "benefits": "" }] },
+  "saturday": { "breakfast": { "name": "", "description": "", "benefits": "" }, "lunch": { "name": "", "description": "", "benefits": "" }, "dinner": { "name": "", "description": "", "benefits": "" }, "snacks": [{ "name": "", "benefits": "" }] },
+  "sunday": { "breakfast": { "name": "", "description": "", "benefits": "" }, "lunch": { "name": "", "description": "", "benefits": "" }, "dinner": { "name": "", "description": "", "benefits": "" }, "snacks": [{ "name": "", "benefits": "" }] },
+  "weeklyTips": ["", "", ""],
+  "shoppingEssentials": ["", "", "", "", ""]
+}`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: weeklyPrompt },
+        { role: 'user', content: `Create my week ${weekNumber} meal plan. Make it completely different and varied!` },
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.95, // Higher temperature for more variety
+    });
+
+    const content = response.choices[0]?.message?.content;
+    return content ? JSON.parse(content) : null;
+  } catch (error) {
+    console.error('OpenAI weekly meal plan error:', error);
+    throw error;
+  }
+}
+
+// Generate weekly workout plan with variety
+export async function generateWeeklyWorkoutPlan(profile: ProfileContext, weekNumber: number = 1) {
+  const weeklyPrompt = `You are a certified prenatal fitness specialist creating a FULL WEEKLY workout plan.
+
+Current Profile:
+- Pregnancy Month: ${profile.pregnancyMonth}
+- Exercise Level: ${profile.exerciseLevel}
+- Health Conditions: ${profile.existingConditions.length ? profile.existingConditions.join(', ') : 'None'}
+
+IMPORTANT: This is Week #${weekNumber}. Generate COMPLETELY DIFFERENT exercises from previous weeks.
+Use random seed: ${Date.now()} to ensure variety.
+
+SAFETY RULES:
+- Month 1-3: Gentle exercises, avoid overheating
+- Month 4-9: NO lying flat on back
+- Include rest days
+- NEVER: high-impact, contact sports, hot yoga, heavy lifting
+
+Format as JSON:
+{
+  "weekNumber": ${weekNumber},
+  "monday": { "type": "", "duration": "", "exercises": [{ "name": "", "reps": "", "instructions": "", "modification": "" }], "restDay": false },
+  "tuesday": { "type": "", "duration": "", "exercises": [{ "name": "", "reps": "", "instructions": "", "modification": "" }], "restDay": false },
+  "wednesday": { "type": "", "duration": "", "exercises": [{ "name": "", "reps": "", "instructions": "", "modification": "" }], "restDay": false },
+  "thursday": { "type": "", "duration": "", "exercises": [{ "name": "", "reps": "", "instructions": "", "modification": "" }], "restDay": false },
+  "friday": { "type": "", "duration": "", "exercises": [{ "name": "", "reps": "", "instructions": "", "modification": "" }], "restDay": false },
+  "saturday": { "type": "", "duration": "", "exercises": [{ "name": "", "reps": "", "instructions": "", "modification": "" }], "restDay": false },
+  "sunday": { "type": "Rest Day", "duration": "0", "exercises": [], "restDay": true },
+  "weeklyGoal": "",
+  "safetyReminders": ["", "", ""]
+}`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: weeklyPrompt },
+        { role: 'user', content: `Create my week ${weekNumber} workout plan. Make it varied and different!` },
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.95,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    return content ? JSON.parse(content) : null;
+  } catch (error) {
+    console.error('OpenAI weekly workout error:', error);
+    throw error;
+  }
+}
+
+// Analyze medical report and generate summary, diet plan, workout plan
+export async function analyzeReport(profile: ProfileContext, reportContent: string, reportType: string) {
+  const analysisPrompt = `You are a prenatal health advisor analyzing a medical report.
+
+User Profile:
+- Pregnancy Month: ${profile.pregnancyMonth}
+- Diet: ${profile.dietPreference}
+- Allergies: ${profile.allergies.join(', ') || 'None'}
+- Conditions: ${profile.existingConditions.join(', ') || 'None'}
+
+Report Type: ${reportType}
+Report Content: ${reportContent}
+
+Analyze this report and provide:
+1. A clear summary of key findings
+2. A personalized diet plan based on the findings
+3. A safe workout plan based on the findings
+
+IMPORTANT: Always recommend consulting healthcare provider for medical decisions.
+
+Format as JSON:
+{
+  "summary": {
+    "keyFindings": ["", "", ""],
+    "normalResults": ["", ""],
+    "attentionNeeded": ["", ""],
+    "recommendations": ["", "", ""]
+  },
+  "dietPlan": {
+    "focus": "",
+    "recommendations": [{ "food": "", "reason": "", "frequency": "" }],
+    "avoid": [{ "item": "", "reason": "" }],
+    "sampleMeals": { "breakfast": "", "lunch": "", "dinner": "" }
+  },
+  "workoutPlan": {
+    "intensity": "",
+    "focus": "",
+    "exercises": [{ "name": "", "duration": "", "benefit": "", "precaution": "" }],
+    "avoid": [""],
+    "weeklySchedule": ""
+  },
+  "disclaimer": "This analysis is for informational purposes only. Please consult your healthcare provider for medical advice."
+}`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: analysisPrompt },
+        { role: 'user', content: `Analyze my ${reportType} report and provide recommendations.` },
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.5,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    return content ? JSON.parse(content) : null;
+  } catch (error) {
+    console.error('OpenAI report analysis error:', error);
+    throw error;
+  }
+}
+
 export default openai;

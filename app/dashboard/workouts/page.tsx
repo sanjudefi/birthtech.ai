@@ -28,6 +28,8 @@ import {
   Footprints,
   Wind,
   Waves,
+  History,
+  Eye,
 } from 'lucide-react';
 
 interface Exercise {
@@ -40,18 +42,31 @@ interface Exercise {
 }
 
 interface DayWorkout {
-  type: string; // strength, cardio, flexibility, rest, prenatal_yoga
+  type: string;
   duration: string;
   calories?: string;
-  warmup: Exercise[];
-  main: Exercise[];
-  cooldown: Exercise[];
-  focus: string;
+  warmup?: Exercise[];
+  main?: Exercise[];
+  cooldown?: Exercise[];
+  exercises?: Exercise[];
+  focus?: string;
   isRestDay?: boolean;
+  restDay?: boolean;
 }
 
 interface WeeklyWorkoutPlan {
   [key: string]: DayWorkout;
+  weekNumber?: number;
+  weeklyGoal?: string;
+  safetyReminders?: string[];
+}
+
+interface WeeklyPlanRecord {
+  id: string;
+  weekStart: string;
+  weekEnd: string;
+  workouts: any;
+  createdAt: string;
 }
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
@@ -72,6 +87,7 @@ const WORKOUT_TYPES: Record<string, { icon: any; color: string; bgColor: string;
   prenatal_yoga: { icon: Waves, color: 'text-indigo-600', bgColor: 'bg-indigo-100', label: 'Prenatal Yoga' },
   walking: { icon: Footprints, color: 'text-green-600', bgColor: 'bg-green-100', label: 'Walking' },
   rest: { icon: Moon, color: 'text-gray-600', bgColor: 'bg-gray-100', label: 'Rest Day' },
+  'Rest Day': { icon: Moon, color: 'text-gray-600', bgColor: 'bg-gray-100', label: 'Rest Day' },
 };
 
 export default function WorkoutsPage() {
@@ -83,7 +99,9 @@ export default function WorkoutsPage() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set());
-  const [isWorkoutActive, setIsWorkoutActive] = useState(false);
+  const [history, setHistory] = useState<WeeklyPlanRecord[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -92,8 +110,8 @@ export default function WorkoutsPage() {
       return;
     }
     fetchProfile(token);
-    fetchWeeklyWorkout(token);
-  }, [router, weekOffset]);
+    fetchHistory(token);
+  }, [router]);
 
   const fetchProfile = async (token: string) => {
     try {
@@ -109,23 +127,44 @@ export default function WorkoutsPage() {
     }
   };
 
-  const fetchWeeklyWorkout = async (token: string) => {
+  const fetchHistory = async (token: string) => {
     try {
-      const res = await fetch(`/api/ai/workout?weekOffset=${weekOffset}`, {
+      const res = await fetch('/api/ai/weekly-workout', {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       if (res.ok) {
         const data = await res.json();
-        if (data.weeklyPlan) {
-          setWeeklyPlan(data.weeklyPlan);
+        setHistory(data.plans || []);
+
+        // Load current week's plan if exists
+        const currentWeek = getWeekStart(new Date());
+        const currentPlan = data.plans?.find((p: WeeklyPlanRecord) =>
+          new Date(p.weekStart).toDateString() === currentWeek.toDateString()
+        );
+        if (currentPlan?.workouts) {
+          loadPlanFromRecord(currentPlan);
         }
       }
     } catch (error) {
-      console.error('Error fetching weekly workout:', error);
+      console.error('Error fetching history:', error);
     } finally {
       setInitialLoading(false);
     }
+  };
+
+  const getWeekStart = (date: Date): Date => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    d.setDate(diff);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+
+  const loadPlanFromRecord = (record: WeeklyPlanRecord) => {
+    setCurrentPlanId(record.id);
+    setWeeklyPlan(record.workouts);
+    setShowHistory(false);
   };
 
   const generateWeeklyWorkout = async () => {
@@ -134,21 +173,20 @@ export default function WorkoutsPage() {
 
     setLoading(true);
     try {
-      const res = await fetch('/api/ai/workout', {
+      const res = await fetch('/api/ai/weekly-workout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ weekOffset, type: 'weekly' }),
       });
 
       const data = await res.json();
 
-      if (res.ok && data.weeklyPlan) {
-        setWeeklyPlan(data.weeklyPlan);
+      if (res.ok && data.plan) {
+        loadPlanFromRecord(data.plan);
+        fetchHistory(token);
       } else {
-        // Generate sample data
         generateSampleWorkout();
       }
     } catch (error: any) {
@@ -160,33 +198,16 @@ export default function WorkoutsPage() {
   };
 
   const generateSampleWorkout = () => {
-    const exerciseLevel = profile?.exerciseLevel || 'moderate';
-    const pregnancyMonth = profile?.pregnancyMonth || 6;
-
-    // Adjust intensity based on trimester and exercise level
-    const isThirdTrimester = pregnancyMonth >= 7;
-    const baseIntensity = exerciseLevel === 'none' ? 'gentle' : exerciseLevel === 'light' ? 'light' : 'moderate';
-
     const samplePlan: WeeklyWorkoutPlan = {
       monday: {
         type: 'prenatal_yoga',
         duration: '30 min',
         calories: '150',
         focus: 'Flexibility & Relaxation',
-        warmup: [
-          { name: 'Gentle Neck Rolls', duration: '2 min', instructions: 'Slowly roll your head in circles, 5 times each direction' },
-          { name: 'Shoulder Shrugs', duration: '2 min', instructions: 'Lift shoulders to ears, hold, then release' },
-        ],
-        main: [
+        exercises: [
           { name: 'Cat-Cow Stretch', duration: '3 min', instructions: 'On all fours, alternate between arching and rounding your back', modification: 'Use a pillow under knees for comfort' },
           { name: 'Modified Child\'s Pose', duration: '2 min', instructions: 'Kneel with knees wide apart, stretch arms forward', modification: 'Keep knees wide to accommodate belly' },
-          { name: 'Seated Side Stretch', duration: '3 min', instructions: 'Sit cross-legged, reach one arm overhead and lean', modification: 'Sit on cushion for comfort' },
           { name: 'Butterfly Stretch', duration: '3 min', instructions: 'Sit with soles of feet together, gently press knees down' },
-          { name: 'Prenatal Pigeon Pose', duration: '4 min', instructions: 'Modified pigeon with props for hip opening' },
-        ],
-        cooldown: [
-          { name: 'Deep Breathing', duration: '3 min', instructions: 'Belly breathing, inhale for 4, hold for 4, exhale for 6' },
-          { name: 'Savasana (Side-lying)', duration: '5 min', instructions: 'Lie on your left side with pillow between knees' },
         ],
       },
       tuesday: {
@@ -194,66 +215,36 @@ export default function WorkoutsPage() {
         duration: '25 min',
         calories: '120',
         focus: 'Light Cardio',
-        warmup: [
-          { name: 'Gentle Marching', duration: '2 min', instructions: 'March in place, lifting knees gently' },
-          { name: 'Arm Circles', duration: '2 min', instructions: 'Small to large circles with arms extended' },
-        ],
-        main: [
-          { name: 'Brisk Walk', duration: '15 min', instructions: 'Maintain a pace where you can still hold a conversation', modification: 'Walk indoors or on flat terrain' },
-        ],
-        cooldown: [
-          { name: 'Slow Walk', duration: '3 min', instructions: 'Gradually slow your pace' },
-          { name: 'Standing Calf Stretch', duration: '3 min', instructions: 'Hold onto wall, step one foot back, press heel down' },
+        exercises: [
+          { name: 'Brisk Walk', duration: '15 min', instructions: 'Maintain a pace where you can still hold a conversation' },
+          { name: 'Cool Down Walk', duration: '5 min', instructions: 'Gradually slow your pace' },
         ],
       },
       wednesday: {
         type: 'strength',
         duration: '25 min',
         calories: '130',
-        focus: 'Upper Body & Core Stability',
-        warmup: [
-          { name: 'Arm Swings', duration: '2 min', instructions: 'Gentle arm swings across body' },
-          { name: 'Wrist Circles', duration: '1 min', instructions: 'Circle wrists in both directions' },
-        ],
-        main: [
-          { name: 'Wall Push-ups', duration: '3 min', reps: '2 sets of 10', instructions: 'Stand arm\'s length from wall, lower chest toward wall', modification: 'Step closer to wall to make easier' },
-          { name: 'Seated Bicep Curls', duration: '3 min', reps: '2 sets of 12', instructions: 'Use light weights (2-5 lbs) or water bottles', modification: 'Do without weights if needed' },
-          { name: 'Bird Dog', duration: '4 min', reps: '10 each side', instructions: 'On all fours, extend opposite arm and leg', modification: 'Just lift arm OR leg, not both' },
-          { name: 'Seated Shoulder Press', duration: '3 min', reps: '2 sets of 10', instructions: 'Press light weights overhead while seated' },
-        ],
-        cooldown: [
-          { name: 'Chest Opener', duration: '2 min', instructions: 'Clasp hands behind back, squeeze shoulder blades' },
-          { name: 'Tricep Stretch', duration: '2 min', instructions: 'Reach one arm overhead, bend elbow, gentle push with other hand' },
+        focus: 'Upper Body & Core',
+        exercises: [
+          { name: 'Wall Push-ups', reps: '2 sets of 10', duration: '3 min', instructions: 'Stand arm\'s length from wall', modification: 'Step closer to wall to make easier' },
+          { name: 'Bird Dog', reps: '10 each side', duration: '4 min', instructions: 'On all fours, extend opposite arm and leg' },
         ],
       },
       thursday: {
         type: 'rest',
         duration: '0 min',
         focus: 'Recovery & Self-Care',
-        isRestDay: true,
-        warmup: [],
-        main: [
-          { name: 'Gentle Stretching', duration: '10 min', instructions: 'Optional light stretching if you feel like it' },
-          { name: 'Self-Care Time', duration: '20 min', instructions: 'Take a warm bath, read a book, or nap' },
-        ],
-        cooldown: [],
+        restDay: true,
+        exercises: [],
       },
       friday: {
         type: 'cardio',
         duration: '20 min',
         calories: '100',
         focus: 'Low-Impact Cardio',
-        warmup: [
-          { name: 'Marching in Place', duration: '3 min', instructions: 'Lift knees to comfortable height' },
-        ],
-        main: [
-          { name: 'Side Steps', duration: '3 min', instructions: 'Step side to side, adding arm movements' },
-          { name: 'Gentle Squats', duration: '4 min', reps: '2 sets of 10', instructions: 'Feet wide, squat to comfortable depth', modification: 'Hold onto chair for balance' },
-          { name: 'Standing Leg Lifts', duration: '4 min', reps: '10 each side', instructions: 'Hold chair, lift leg to side', modification: 'Smaller range of motion' },
-        ],
-        cooldown: [
-          { name: 'Hip Circles', duration: '2 min', instructions: 'Hands on hips, circle hips gently' },
-          { name: 'Standing Forward Fold', duration: '2 min', instructions: 'Feet wide, fold forward with bent knees' },
+        exercises: [
+          { name: 'Side Steps', duration: '3 min', instructions: 'Step side to side with arm movements' },
+          { name: 'Gentle Squats', reps: '2 sets of 10', duration: '4 min', instructions: 'Feet wide, squat to comfortable depth' },
         ],
       },
       saturday: {
@@ -261,34 +252,19 @@ export default function WorkoutsPage() {
         duration: '25 min',
         calories: '80',
         focus: 'Full Body Stretch',
-        warmup: [
-          { name: 'Gentle Breathing', duration: '2 min', instructions: 'Deep belly breaths to relax' },
-        ],
-        main: [
+        exercises: [
           { name: 'Neck & Shoulder Release', duration: '4 min', instructions: 'Ear to shoulder stretches, shoulder rolls' },
-          { name: 'Seated Spinal Twist', duration: '4 min', instructions: 'Gentle twist to each side while seated', modification: 'Keep twist minimal in third trimester' },
           { name: 'Hip Flexor Stretch', duration: '4 min', instructions: 'Lunge position with back knee down' },
-          { name: 'Hamstring Stretch', duration: '4 min', instructions: 'Seated with legs extended, reach for toes' },
-          { name: 'Prenatal Goddess Squat', duration: '3 min', instructions: 'Wide stance, toes out, lower into squat' },
-        ],
-        cooldown: [
-          { name: 'Legs Up the Wall', duration: '4 min', instructions: 'Lie near wall, legs resting up. Great for swelling!' },
         ],
       },
       sunday: {
         type: 'rest',
         duration: '0 min',
         focus: 'Rest & Rejuvenation',
-        isRestDay: true,
-        warmup: [],
-        main: [
-          { name: 'Leisurely Walk', duration: '15 min', instructions: 'Optional gentle walk if you feel like it' },
-          { name: 'Meditation', duration: '10 min', instructions: 'Guided pregnancy meditation or quiet reflection' },
-        ],
-        cooldown: [],
+        restDay: true,
+        exercises: [],
       },
     };
-
     setWeeklyPlan(samplePlan);
   };
 
@@ -314,8 +290,8 @@ export default function WorkoutsPage() {
     return `${dates[0].month} ${dates[0].day} - ${dates[6].month} ${dates[6].day}`;
   };
 
-  const toggleExercise = (day: string, phase: string, index: number) => {
-    const key = `${day}-${phase}-${index}`;
+  const toggleExercise = (day: string, index: number) => {
+    const key = `${day}-${index}`;
     setCompletedExercises((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(key)) {
@@ -330,23 +306,22 @@ export default function WorkoutsPage() {
   const getDayProgress = (day: string) => {
     if (!weeklyPlan || !weeklyPlan[day]) return 0;
     const workout = weeklyPlan[day];
-    if (workout.isRestDay) return 100;
+    if (workout.restDay || workout.isRestDay) return 100;
 
-    const totalExercises = workout.warmup.length + workout.main.length + workout.cooldown.length;
-    if (totalExercises === 0) return 0;
+    const exercises = workout.exercises || [];
+    if (exercises.length === 0) return 0;
 
     let completed = 0;
-    workout.warmup.forEach((_, i) => {
-      if (completedExercises.has(`${day}-warmup-${i}`)) completed++;
-    });
-    workout.main.forEach((_, i) => {
-      if (completedExercises.has(`${day}-main-${i}`)) completed++;
-    });
-    workout.cooldown.forEach((_, i) => {
-      if (completedExercises.has(`${day}-cooldown-${i}`)) completed++;
+    exercises.forEach((_, i) => {
+      if (completedExercises.has(`${day}-${i}`)) completed++;
     });
 
-    return Math.round((completed / totalExercises) * 100);
+    return Math.round((completed / exercises.length) * 100);
+  };
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
   const weekDates = getWeekDates();
@@ -367,21 +342,45 @@ export default function WorkoutsPage() {
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50">
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Link
-            href="/dashboard"
-            className="p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-full"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <div className="flex items-center gap-3 flex-1">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center">
-              <Dumbbell className="w-5 h-5 text-white" />
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link
+              href="/dashboard"
+              className="p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-full"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+            <div className="flex items-center gap-3 flex-1">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center">
+                <Dumbbell className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="font-semibold text-gray-900">Weekly Workouts</h1>
+                <p className="text-xs text-gray-500">Safe pregnancy exercises</p>
+              </div>
             </div>
-            <div>
-              <h1 className="font-semibold text-gray-900">Weekly Workouts</h1>
-              <p className="text-xs text-gray-500">Safe pregnancy exercises</p>
-            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {history.length > 0 && (
+              <button
+                onClick={() => setShowHistory(true)}
+                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+              >
+                <History className="w-4 h-4" />
+                History ({history.length})
+              </button>
+            )}
+            {weeklyPlan && (
+              <button
+                onClick={generateWeeklyWorkout}
+                disabled={loading}
+                className="flex items-center gap-2 px-4 py-2 text-sm text-purple-600 hover:bg-purple-50 rounded-xl transition-colors"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                Regenerate
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -431,6 +430,11 @@ export default function WorkoutsPage() {
               <Sparkles className="w-5 h-5" />
               Generate Weekly Plan
             </button>
+            {history.length > 0 && (
+              <p className="text-sm text-gray-500 mt-4">
+                Or <button onClick={() => setShowHistory(true)} className="text-purple-600 hover:underline">view your past plans</button>
+              </p>
+            )}
           </div>
         )}
 
@@ -446,17 +450,6 @@ export default function WorkoutsPage() {
         {/* Weekly Grid */}
         {weeklyPlan && !loading && (
           <>
-            {/* Regenerate Button */}
-            <div className="flex justify-end mb-4">
-              <button
-                onClick={generateWeeklyWorkout}
-                className="flex items-center gap-2 px-4 py-2 text-sm text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Regenerate Plan
-              </button>
-            </div>
-
             {/* Desktop Grid */}
             <div className="hidden md:grid grid-cols-7 gap-3 mb-6">
               {DAYS.map((day, index) => {
@@ -465,6 +458,7 @@ export default function WorkoutsPage() {
                 const typeInfo = workout ? WORKOUT_TYPES[workout.type] || WORKOUT_TYPES.rest : WORKOUT_TYPES.rest;
                 const Icon = typeInfo.icon;
                 const progress = getDayProgress(day);
+                const isRestDay = workout?.restDay || workout?.isRestDay;
 
                 return (
                   <button
@@ -474,7 +468,6 @@ export default function WorkoutsPage() {
                       selectedDay === day ? 'ring-2 ring-purple-500' : ''
                     } ${dateInfo.isToday ? 'ring-2 ring-pink-400' : ''}`}
                   >
-                    {/* Date */}
                     <div className="text-center mb-3">
                       <p className="text-xs text-gray-500 uppercase">{DAY_LABELS[day]}</p>
                       <p className={`text-lg font-bold ${dateInfo.isToday ? 'text-pink-500' : 'text-gray-900'}`}>
@@ -482,16 +475,14 @@ export default function WorkoutsPage() {
                       </p>
                     </div>
 
-                    {/* Workout Type */}
                     <div className={`w-12 h-12 rounded-xl ${typeInfo.bgColor} flex items-center justify-center mx-auto mb-2`}>
                       <Icon className={`w-6 h-6 ${typeInfo.color}`} />
                     </div>
                     <p className="text-sm font-medium text-gray-900 text-center">{typeInfo.label}</p>
 
-                    {workout && !workout.isRestDay && (
+                    {workout && !isRestDay && (
                       <>
                         <p className="text-xs text-gray-500 text-center mt-1">{workout.duration}</p>
-                        {/* Progress */}
                         <div className="mt-3">
                           <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
                             <div
@@ -505,7 +496,7 @@ export default function WorkoutsPage() {
                         </div>
                       </>
                     )}
-                    {workout?.isRestDay && (
+                    {isRestDay && (
                       <p className="text-xs text-gray-400 text-center mt-1">Rest & recover</p>
                     )}
                   </button>
@@ -521,6 +512,7 @@ export default function WorkoutsPage() {
                 const typeInfo = workout ? WORKOUT_TYPES[workout.type] || WORKOUT_TYPES.rest : WORKOUT_TYPES.rest;
                 const Icon = typeInfo.icon;
                 const progress = getDayProgress(day);
+                const isRestDay = workout?.restDay || workout?.isRestDay;
 
                 return (
                   <button
@@ -530,7 +522,6 @@ export default function WorkoutsPage() {
                       dateInfo.isToday ? 'ring-2 ring-pink-400' : ''
                     }`}
                   >
-                    {/* Date */}
                     <div className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center ${
                       dateInfo.isToday ? 'bg-pink-100' : 'bg-gray-100'
                     }`}>
@@ -540,7 +531,6 @@ export default function WorkoutsPage() {
                       </p>
                     </div>
 
-                    {/* Workout Info */}
                     <div className="flex-1 text-left">
                       <div className="flex items-center gap-2">
                         <div className={`w-8 h-8 rounded-lg ${typeInfo.bgColor} flex items-center justify-center`}>
@@ -549,11 +539,11 @@ export default function WorkoutsPage() {
                         <div>
                           <p className="font-medium text-gray-900">{typeInfo.label}</p>
                           <p className="text-xs text-gray-500">
-                            {workout?.isRestDay ? 'Rest & recover' : workout?.duration}
+                            {isRestDay ? 'Rest & recover' : workout?.duration}
                           </p>
                         </div>
                       </div>
-                      {workout && !workout.isRestDay && progress > 0 && (
+                      {workout && !isRestDay && progress > 0 && (
                         <div className="mt-2">
                           <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
                             <div
@@ -578,7 +568,7 @@ export default function WorkoutsPage() {
                 <p className="font-medium text-amber-800">Safety First</p>
                 <p className="text-sm text-amber-700 mt-1">
                   Always listen to your body. Stop if you feel pain, dizziness, or shortness of breath.
-                  Stay hydrated and avoid overheating. Consult your healthcare provider before starting any exercise program.
+                  Stay hydrated and avoid overheating.
                 </p>
               </div>
             </div>
@@ -590,7 +580,6 @@ export default function WorkoutsPage() {
       {selectedDay && selectedWorkout && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-4">
           <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
-            {/* Modal Header */}
             <div className="p-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
               <div className="flex items-center gap-3">
                 {(() => {
@@ -619,30 +608,17 @@ export default function WorkoutsPage() {
               </button>
             </div>
 
-            {/* Modal Content */}
             <div className="overflow-y-auto max-h-[calc(90vh-120px)] p-4">
-              {selectedWorkout.isRestDay ? (
+              {(selectedWorkout.restDay || selectedWorkout.isRestDay) ? (
                 <div className="text-center py-8">
                   <Moon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">Rest Day</h3>
                   <p className="text-gray-600 max-w-md mx-auto">
-                    Your body needs rest to recover and grow stronger. Take it easy today - you've earned it!
+                    Your body needs rest to recover. Take it easy today!
                   </p>
-                  {selectedWorkout.main.length > 0 && (
-                    <div className="mt-6 space-y-3">
-                      <p className="text-sm text-gray-500">Optional activities:</p>
-                      {selectedWorkout.main.map((exercise, i) => (
-                        <div key={i} className="bg-gray-50 rounded-xl p-4 text-left">
-                          <p className="font-medium text-gray-900">{exercise.name}</p>
-                          <p className="text-sm text-gray-600">{exercise.instructions}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {/* Stats */}
                   <div className="flex items-center justify-center gap-6">
                     <div className="text-center">
                       <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mx-auto mb-1">
@@ -666,120 +642,108 @@ export default function WorkoutsPage() {
                     </div>
                   </div>
 
-                  {/* Warmup */}
-                  {selectedWorkout.warmup.length > 0 && (
-                    <div>
-                      <h3 className="font-semibold text-gray-900 flex items-center gap-2 mb-3">
-                        <span className="w-6 h-6 bg-green-100 rounded-full text-green-600 text-xs flex items-center justify-center font-bold">1</span>
-                        Warm-up
-                      </h3>
-                      <div className="space-y-2">
-                        {selectedWorkout.warmup.map((exercise, i) => (
-                          <button
-                            key={i}
-                            onClick={() => toggleExercise(selectedDay, 'warmup', i)}
-                            className={`w-full p-3 rounded-xl border transition-colors text-left ${
-                              completedExercises.has(`${selectedDay}-warmup-${i}`)
-                                ? 'bg-green-50 border-green-200'
-                                : 'bg-gray-50 border-gray-100 hover:border-purple-200'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="font-medium text-gray-900">{exercise.name}</span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm text-gray-500">{exercise.duration}</span>
-                                {completedExercises.has(`${selectedDay}-warmup-${i}`) && (
-                                  <CheckCircle className="w-5 h-5 text-green-500" />
-                                )}
-                              </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-3">Exercises</h3>
+                    <div className="space-y-2">
+                      {(selectedWorkout.exercises || []).map((exercise, i) => (
+                        <button
+                          key={i}
+                          onClick={() => toggleExercise(selectedDay, i)}
+                          className={`w-full p-3 rounded-xl border transition-colors text-left ${
+                            completedExercises.has(`${selectedDay}-${i}`)
+                              ? 'bg-green-50 border-green-200'
+                              : 'bg-gray-50 border-gray-100 hover:border-purple-200'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-medium text-gray-900">{exercise.name}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-gray-500">
+                                {exercise.reps || exercise.duration}
+                              </span>
+                              {completedExercises.has(`${selectedDay}-${i}`) && (
+                                <CheckCircle className="w-5 h-5 text-green-500" />
+                              )}
                             </div>
-                            <p className="text-sm text-gray-600">{exercise.instructions}</p>
-                          </button>
-                        ))}
-                      </div>
+                          </div>
+                          <p className="text-sm text-gray-600">{exercise.instructions}</p>
+                          {exercise.modification && (
+                            <p className="text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded mt-2 inline-block">
+                              Modification: {exercise.modification}
+                            </p>
+                          )}
+                        </button>
+                      ))}
                     </div>
-                  )}
+                  </div>
 
-                  {/* Main Workout */}
-                  {selectedWorkout.main.length > 0 && (
-                    <div>
-                      <h3 className="font-semibold text-gray-900 flex items-center gap-2 mb-3">
-                        <span className="w-6 h-6 bg-purple-100 rounded-full text-purple-600 text-xs flex items-center justify-center font-bold">2</span>
-                        Main Workout
-                      </h3>
-                      <div className="space-y-2">
-                        {selectedWorkout.main.map((exercise, i) => (
-                          <button
-                            key={i}
-                            onClick={() => toggleExercise(selectedDay, 'main', i)}
-                            className={`w-full p-3 rounded-xl border transition-colors text-left ${
-                              completedExercises.has(`${selectedDay}-main-${i}`)
-                                ? 'bg-green-50 border-green-200'
-                                : 'bg-gray-50 border-gray-100 hover:border-purple-200'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="font-medium text-gray-900">{exercise.name}</span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm text-gray-500">
-                                  {exercise.reps || exercise.duration}
-                                </span>
-                                {completedExercises.has(`${selectedDay}-main-${i}`) && (
-                                  <CheckCircle className="w-5 h-5 text-green-500" />
-                                )}
-                              </div>
-                            </div>
-                            <p className="text-sm text-gray-600 mb-2">{exercise.instructions}</p>
-                            {exercise.modification && (
-                              <p className="text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded inline-block">
-                                Modification: {exercise.modification}
-                              </p>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Cooldown */}
-                  {selectedWorkout.cooldown.length > 0 && (
-                    <div>
-                      <h3 className="font-semibold text-gray-900 flex items-center gap-2 mb-3">
-                        <span className="w-6 h-6 bg-blue-100 rounded-full text-blue-600 text-xs flex items-center justify-center font-bold">3</span>
-                        Cool-down
-                      </h3>
-                      <div className="space-y-2">
-                        {selectedWorkout.cooldown.map((exercise, i) => (
-                          <button
-                            key={i}
-                            onClick={() => toggleExercise(selectedDay, 'cooldown', i)}
-                            className={`w-full p-3 rounded-xl border transition-colors text-left ${
-                              completedExercises.has(`${selectedDay}-cooldown-${i}`)
-                                ? 'bg-green-50 border-green-200'
-                                : 'bg-gray-50 border-gray-100 hover:border-purple-200'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="font-medium text-gray-900">{exercise.name}</span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm text-gray-500">{exercise.duration}</span>
-                                {completedExercises.has(`${selectedDay}-cooldown-${i}`) && (
-                                  <CheckCircle className="w-5 h-5 text-green-500" />
-                                )}
-                              </div>
-                            </div>
-                            <p className="text-sm text-gray-600">{exercise.instructions}</p>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Encouragement */}
                   <div className="bg-gradient-to-r from-purple-500 to-indigo-500 rounded-xl p-4 text-white text-center">
                     <Sparkles className="w-6 h-6 mx-auto mb-2" />
                     <p>You're doing amazing! Every movement counts for you and baby.</p>
                   </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* History Modal */}
+      {showHistory && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowHistory(false)}
+        >
+          <div
+            className="bg-white rounded-2xl w-full max-w-lg max-h-[80vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <History className="w-5 h-5 text-purple-600" />
+                <h3 className="font-semibold text-gray-900">Workout Plan History</h3>
+              </div>
+              <button
+                onClick={() => setShowHistory(false)}
+                className="p-2 hover:bg-gray-100 rounded-full"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto max-h-[calc(80vh-80px)] p-4">
+              {history.length === 0 ? (
+                <p className="text-center text-gray-500 py-8">No workout plans generated yet</p>
+              ) : (
+                <div className="space-y-3">
+                  {history.map((plan) => (
+                    <button
+                      key={plan.id}
+                      onClick={() => loadPlanFromRecord(plan)}
+                      className={`w-full p-4 rounded-xl border text-left hover:border-purple-300 transition-colors ${
+                        currentPlanId === plan.id ? 'border-purple-500 bg-purple-50' : 'border-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {formatDate(plan.weekStart)} - {formatDate(plan.weekEnd)}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            Generated {formatDate(plan.createdAt)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {currentPlanId === plan.id && (
+                            <span className="px-2 py-1 bg-purple-100 text-purple-600 text-xs font-medium rounded-full">
+                              Current
+                            </span>
+                          )}
+                          <Eye className="w-5 h-5 text-gray-400" />
+                        </div>
+                      </div>
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
