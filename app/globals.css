@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --foreground-rgb: 31, 41, 55;
+  --background-start-rgb: 253, 242, 248;
+  --background-end-rgb: 237, 233, 254;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(135deg, rgb(var(--background-start-rgb)), rgb(var(--background-end-rgb)));
+  min-height: 100vh;
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-gradient-to-r from-purple-600 to-pink-500 text-white font-semibold py-3 px-6 rounded-full hover:from-purple-700 hover:to-pink-600 transition-all duration-200 shadow-lg hover:shadow-xl;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-purple-600 font-semibold py-3 px-6 rounded-full border-2 border-purple-600 hover:bg-purple-50 transition-all duration-200;
+  }
+
+  .card {
+    @apply bg-white rounded-2xl shadow-lg p-6;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition-all;
+  }
+
+  .care-card {
+    @apply bg-white rounded-xl p-5 shadow-md hover:shadow-lg transition-shadow border border-gray-100;
+  }
+}

@@ -1,0 +1,155 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("PRISMA_DATABASE_URL")
+  directUrl = env("POSTGRES_URL")
+}
+
+model User {
+  id               String            @id @default(cuid())
+  email            String            @unique
+  passwordHash     String
+  firstName        String?
+  lastName         String?
+  emailVerified    Boolean           @default(false)
+  isAdmin          Boolean           @default(false)
+  resetToken       String?
+  resetExpires     DateTime?
+  stripeCustomerId String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  subscription     Subscription?
+  pregnancyProfile PregnancyProfile?
+  dailyPlans       DailyPlan[]
+  groceryLists     GroceryList[]
+  chatMessages     ChatMessage[]
+  supplements      Supplement[]
+  medicalReports   MedicalReport[]
+}
+
+model Subscription {
+  id                   String    @id @default(cuid())
+  userId               String    @unique
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  planType             String    @default("basic")
+  status               String    @default("inactive")
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+model PregnancyProfile {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Basic Info
+  pregnancyMonth       Int      // 1-9
+  dueDate              DateTime
+  lastPeriodDate       DateTime?
+
+  // Physical
+  heightCm             Float?
+  weightKg             Float?
+  prePregnancyWeight   Float?
+  bloodType            String?  // A+, A-, B+, B-, AB+, AB-, O+, O-
+
+  // Diet
+  dietPreference       String   @default("non-veg") // veg, non-veg, vegan
+  allergies            String[] @default([])
+  foodAversions        String[] @default([])
+
+  // Medical
+  existingConditions   String[] @default([]) // diabetes, hypertension, thyroid, etc.
+  currentMedications   String[] @default([])
+  previousPregnancies  Int      @default(0)
+  complications        String[] @default([])
+
+  // Doctor Info
+  doctorName           String?
+  doctorPhone          String?
+  hospitalName         String?
+
+  // Preferences
+  exerciseLevel        String   @default("moderate") // none, light, moderate, active
+  sleepHours           Float?
+  waterIntakeGoal      Int      @default(8) // glasses per day
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model MedicalReport {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileName    String
+  fileUrl     String
+  fileType    String   // pdf, jpg, png
+  fileSize    Int?
+  reportDate  DateTime?
+  reportType  String   @default("general") // ultrasound, blood_test, general, prescription
+  aiSummary   String?  // High-level AI analysis
+  notes       String?
+  createdAt   DateTime @default(now())
+}
+
+model DailyPlan {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planDate    DateTime
+  meals       Json     // { breakfast: {}, lunch: {}, dinner: {}, snacks: [] }
+  workout     Json?    // { exercises: [], duration: 0, notes: "" }
+  supplements Json?    // [{ name, time, taken }]
+  tips        Json?    // [{ tip, category }]
+  precautions Json?    // [{ precaution, priority }]
+  hydration   Json?    // { target: 8, completed: 0 }
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, planDate])
+}
+
+model GroceryList {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekStart DateTime
+  items     Json     // [{ name, quantity, category, unit, checked }]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, weekStart])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   // user, assistant
+  content   String
+  createdAt DateTime @default(now())
+}
+
+model Supplement {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  dosage    String?
+  frequency String   @default("daily") // daily, twice_daily, weekly
+  timeOfDay String[] @default(["morning"]) // morning, afternoon, evening, night
+  startDate DateTime @default(now())
+  endDate   DateTime?
+  notes     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

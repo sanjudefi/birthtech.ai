@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  firstName     String?   @map("first_name")
+  lastName      String?   @map("last_name")
+  emailVerified Boolean   @default(false) @map("email_verified")
+  resetToken    String?   @map("reset_token")
+  resetExpires  DateTime? @map("reset_expires")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  subscription     Subscription?
+  pregnancyProfile PregnancyProfile?
+  dailyCarePlans   DailyCarePlan[]
+  weeklyInventory  WeeklyInventory[]
+
+  @@map("users")
+}
+
+model Subscription {
+  id                   String   @id @default(uuid())
+  userId               String   @unique @map("user_id")
+  stripeCustomerId     String?  @map("stripe_customer_id")
+  stripeSubscriptionId String?  @map("stripe_subscription_id")
+  planType             String   @default("basic") @map("plan_type") // basic, premium
+  status               String   @default("inactive") // active, cancelled, expired, inactive
+  currentPeriodStart   DateTime? @map("current_period_start")
+  currentPeriodEnd     DateTime? @map("current_period_end")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+model PregnancyProfile {
+  id             String   @id @default(uuid())
+  userId         String   @unique @map("user_id")
+  pregnancyMonth Int      @map("pregnancy_month") // 3-9
+  dueDate        DateTime @map("due_date")
+  heightCm       Decimal? @map("height_cm")
+  weightKg       Decimal? @map("weight_kg")
+  dietPreference String   @default("non-veg") @map("diet_preference") // veg, non-veg, vegan
+  allergies      String[] @default([])
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("pregnancy_profiles")
+}
+
+model DailyCarePlan {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  planDate        DateTime @map("plan_date")
+  meals           Json     @default("{}")
+  exerciseMinutes Int      @default(20) @map("exercise_minutes")
+  hydrationGlasses Int     @default(8) @map("hydration_glasses")
+  sleepTip        String   @map("sleep_tip")
+  wellnessTip     String   @map("wellness_tip")
+  safetyNote      String   @map("safety_note")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, planDate])
+  @@map("daily_care_plans")
+}
+
+model WeeklyInventory {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  weekStart DateTime @map("week_start")
+  foodItems Json     @default("{}") @map("food_items")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+  @@map("weekly_inventory")
+}
+
+model MonthlyStaple {
+  id             String @id @default(uuid())
+  pregnancyMonth Int    @map("pregnancy_month")
+  dietPreference String @map("diet_preference")
+  stapleItems    Json   @default("{}") @map("staple_items")
+
+  @@unique([pregnancyMonth, dietPreference])
+  @@map("monthly_staples")
+}
