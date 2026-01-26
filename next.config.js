@@ -2,7 +2,13 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: [],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'thebirthtech.com',
+        pathname: '/wp-content/uploads/**',
+      },
+    ],
   },
 }
 

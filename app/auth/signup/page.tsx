@@ -3,7 +3,7 @@
 import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Heart, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Heart, Eye, EyeOff, Loader2, Phone } from 'lucide-react';
 
 function SignupForm() {
   const router = useRouter();
@@ -14,9 +14,9 @@ function SignupForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
+    fullName: '',
     email: '',
+    mobile: '',
     password: '',
   });
 
@@ -35,7 +35,13 @@ function SignupForm() {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          firstName: formData.fullName.split(' ')[0],
+          lastName: formData.fullName.split(' ').slice(1).join(' ') || '',
+          email: formData.email,
+          mobile: formData.mobile,
+          password: formData.password,
+        }),
       });
 
       const data = await res.json();
@@ -66,33 +72,18 @@ function SignupForm() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              First Name
-            </label>
-            <input
-              type="text"
-              className="input-field"
-              placeholder="Jane"
-              value={formData.firstName}
-              onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Last Name
-            </label>
-            <input
-              type="text"
-              className="input-field"
-              placeholder="Smith"
-              value={formData.lastName}
-              onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-              required
-            />
-          </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Full Name
+          </label>
+          <input
+            type="text"
+            className="input-field"
+            placeholder="Jane Smith"
+            value={formData.fullName}
+            onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+            required
+          />
         </div>
 
         <div>
@@ -107,6 +98,23 @@ function SignupForm() {
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             required
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Mobile Number
+          </label>
+          <div className="relative">
+            <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="tel"
+              className="input-field pl-12"
+              placeholder="+1 (555) 000-0000"
+              value={formData.mobile}
+              onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
+              required
+            />
+          </div>
         </div>
 
         <div>
