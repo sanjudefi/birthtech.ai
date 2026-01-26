@@ -175,7 +175,7 @@ export default function CalendarPage() {
       const currentDate = new Date(year, month, day);
       currentDate.setHours(0, 0, 0, 0);
 
-      const isDueDate = dueDate && currentDate.getTime() === dueDate.getTime();
+      const isDueDate = dueDate ? currentDate.getTime() === dueDate.getTime() : false;
 
       days.push({
         date: currentDate,
