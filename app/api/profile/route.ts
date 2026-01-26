@@ -53,9 +53,17 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const {
-      // Basic Info
+      // Personal Info
+      fullName,
+      motherAge,
+      country,
+      city,
+      preferredLanguages,
+      // Pregnancy Info
       pregnancyMonth,
       dueDate,
+      pregnancyType,
+      pregnancyCount,
       lastPeriodDate,
       // Physical
       heightCm,
@@ -66,6 +74,8 @@ export async function POST(request: NextRequest) {
       dietPreference,
       allergies,
       foodAversions,
+      // Deficiencies
+      deficiencies,
       // Medical
       existingConditions,
       currentMedications,
@@ -81,20 +91,28 @@ export async function POST(request: NextRequest) {
       waterIntakeGoal,
     } = body;
 
-    // Check if profile already exists - use upsert instead of error
+    // Use upsert to create or update profile
     const profile = await prisma.pregnancyProfile.upsert({
       where: { userId },
       update: {
+        fullName,
+        motherAge,
+        country,
+        city,
+        preferredLanguages: preferredLanguages || ['English'],
         pregnancyMonth,
         dueDate: dueDate ? new Date(dueDate) : undefined,
+        pregnancyType: pregnancyType || 'single',
+        pregnancyCount: pregnancyCount || 1,
         lastPeriodDate: lastPeriodDate ? new Date(lastPeriodDate) : undefined,
         heightCm,
         weightKg,
         prePregnancyWeight,
         bloodType,
-        dietPreference,
+        dietPreference: dietPreference || 'non-veg',
         allergies: allergies || [],
         foodAversions: foodAversions || [],
+        deficiencies: deficiencies || [],
         existingConditions: existingConditions || [],
         currentMedications: currentMedications || [],
         previousPregnancies: previousPregnancies || 0,
@@ -102,14 +120,21 @@ export async function POST(request: NextRequest) {
         doctorName,
         doctorPhone,
         hospitalName,
-        exerciseLevel,
+        exerciseLevel: exerciseLevel || 'moderate',
         sleepHours,
-        waterIntakeGoal,
+        waterIntakeGoal: waterIntakeGoal || 8,
       },
       create: {
         userId,
+        fullName,
+        motherAge,
+        country,
+        city,
+        preferredLanguages: preferredLanguages || ['English'],
         pregnancyMonth,
         dueDate: new Date(dueDate),
+        pregnancyType: pregnancyType || 'single',
+        pregnancyCount: pregnancyCount || 1,
         lastPeriodDate: lastPeriodDate ? new Date(lastPeriodDate) : null,
         heightCm,
         weightKg,
@@ -118,6 +143,7 @@ export async function POST(request: NextRequest) {
         dietPreference: dietPreference || 'non-veg',
         allergies: allergies || [],
         foodAversions: foodAversions || [],
+        deficiencies: deficiencies || [],
         existingConditions: existingConditions || [],
         currentMedications: currentMedications || [],
         previousPregnancies: previousPregnancies || 0,
@@ -153,23 +179,46 @@ export async function PUT(request: NextRequest) {
     // Build update data dynamically - only include fields that are provided
     const updateData: any = {};
 
+    // Personal Info
+    if (body.fullName !== undefined) updateData.fullName = body.fullName;
+    if (body.motherAge !== undefined) updateData.motherAge = body.motherAge;
+    if (body.country !== undefined) updateData.country = body.country;
+    if (body.city !== undefined) updateData.city = body.city;
+    if (body.preferredLanguages !== undefined) updateData.preferredLanguages = body.preferredLanguages;
+
+    // Pregnancy Info
     if (body.pregnancyMonth !== undefined) updateData.pregnancyMonth = body.pregnancyMonth;
     if (body.dueDate !== undefined) updateData.dueDate = new Date(body.dueDate);
+    if (body.pregnancyType !== undefined) updateData.pregnancyType = body.pregnancyType;
+    if (body.pregnancyCount !== undefined) updateData.pregnancyCount = body.pregnancyCount;
     if (body.lastPeriodDate !== undefined) updateData.lastPeriodDate = body.lastPeriodDate ? new Date(body.lastPeriodDate) : null;
+
+    // Physical
     if (body.heightCm !== undefined) updateData.heightCm = body.heightCm;
     if (body.weightKg !== undefined) updateData.weightKg = body.weightKg;
     if (body.prePregnancyWeight !== undefined) updateData.prePregnancyWeight = body.prePregnancyWeight;
     if (body.bloodType !== undefined) updateData.bloodType = body.bloodType;
+
+    // Diet
     if (body.dietPreference !== undefined) updateData.dietPreference = body.dietPreference;
     if (body.allergies !== undefined) updateData.allergies = body.allergies;
     if (body.foodAversions !== undefined) updateData.foodAversions = body.foodAversions;
+
+    // Deficiencies
+    if (body.deficiencies !== undefined) updateData.deficiencies = body.deficiencies;
+
+    // Medical
     if (body.existingConditions !== undefined) updateData.existingConditions = body.existingConditions;
     if (body.currentMedications !== undefined) updateData.currentMedications = body.currentMedications;
     if (body.previousPregnancies !== undefined) updateData.previousPregnancies = body.previousPregnancies;
     if (body.complications !== undefined) updateData.complications = body.complications;
+
+    // Doctor Info
     if (body.doctorName !== undefined) updateData.doctorName = body.doctorName;
     if (body.doctorPhone !== undefined) updateData.doctorPhone = body.doctorPhone;
     if (body.hospitalName !== undefined) updateData.hospitalName = body.hospitalName;
+
+    // Preferences
     if (body.exerciseLevel !== undefined) updateData.exerciseLevel = body.exerciseLevel;
     if (body.sleepHours !== undefined) updateData.sleepHours = body.sleepHours;
     if (body.waterIntakeGoal !== undefined) updateData.waterIntakeGoal = body.waterIntakeGoal;

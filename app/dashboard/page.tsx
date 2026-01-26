@@ -19,6 +19,7 @@ import {
   ChevronRight,
   Baby,
   Settings,
+  ShoppingBag,
 } from 'lucide-react';
 
 // Baby size by month
@@ -341,6 +342,21 @@ export default function DashboardPage() {
             <ChevronRight className="w-6 h-6 ml-auto" />
           </Link>
         </div>
+
+        {/* Shop Link */}
+        <Link
+          href="/dashboard/shop"
+          className="bg-white rounded-2xl p-5 mb-6 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow"
+        >
+          <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center">
+            <ShoppingBag className="w-6 h-6 text-white" />
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-gray-900">Pregnancy Shop</p>
+            <p className="text-sm text-gray-500">Curated products for you & baby</p>
+          </div>
+          <ChevronRight className="w-6 h-6 text-gray-400" />
+        </Link>
 
         {/* Hydration Tracker */}
         <div className="bg-white rounded-2xl p-5 shadow-sm mb-6">

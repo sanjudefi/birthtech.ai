@@ -24,10 +24,12 @@ model User {
   subscription     Subscription?
   pregnancyProfile PregnancyProfile?
   dailyPlans       DailyPlan[]
+  weeklyPlans      WeeklyPlan[]
   groceryLists     GroceryList[]
   chatMessages     ChatMessage[]
   supplements      Supplement[]
   medicalReports   MedicalReport[]
+  reportAnalyses   ReportAnalysis[]
 }
 
 model Subscription {
@@ -49,10 +51,19 @@ model PregnancyProfile {
   userId               String   @unique
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Basic Info
+  // Personal Info
+  fullName             String?
+  motherAge            Int?
+  country              String?
+  city                 String?
+  preferredLanguages   String[] @default(["English"])
+
+  // Pregnancy Info
   pregnancyMonth       Int      // 1-9
   dueDate              DateTime
   lastPeriodDate       DateTime?
+  pregnancyType        String   @default("single") // single, twins, triplets
+  pregnancyCount       Int      @default(1) // 1st, 2nd, 3rd pregnancy
 
   // Physical
   heightCm             Float?
@@ -61,9 +72,12 @@ model PregnancyProfile {
   bloodType            String?  // A+, A-, B+, B-, AB+, AB-, O+, O-
 
   // Diet
-  dietPreference       String   @default("non-veg") // veg, non-veg, vegan
+  dietPreference       String   @default("non-veg") // veg, egg, non-veg
   allergies            String[] @default([])
   foodAversions        String[] @default([])
+
+  // Deficiencies (user-selected, guided)
+  deficiencies         String[] @default([]) // iron, calcium, b12, vitamin_d, protein, folate, not_sure
 
   // Medical
   existingConditions   String[] @default([]) // diabetes, hypertension, thyroid, etc.
@@ -86,18 +100,44 @@ model PregnancyProfile {
 }
 
 model MedicalReport {
+  id          String           @id @default(cuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileName    String
+  fileUrl     String
+  fileType    String           // pdf, jpg, png
+  fileSize    Int?
+  reportDate  DateTime?
+  reportType  String           @default("general") // ultrasound, blood_test, general, prescription
+  aiSummary   String?          // High-level AI summary
+  notes       String?
+  analyses    ReportAnalysis[]
+  createdAt   DateTime         @default(now())
+}
+
+model ReportAnalysis {
+  id           String        @id @default(cuid())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reportId     String
+  report       MedicalReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  analysisType String        // summary, normal, attention, diet_plan, workout_plan, expert_chat
+  content      String        // AI-generated content
+  createdAt    DateTime      @default(now())
+}
+
+model WeeklyPlan {
   id          String   @id @default(cuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fileName    String
-  fileUrl     String
-  fileType    String   // pdf, jpg, png
-  fileSize    Int?
-  reportDate  DateTime?
-  reportType  String   @default("general") // ultrasound, blood_test, general, prescription
-  aiSummary   String?  // High-level AI analysis
-  notes       String?
+  weekStart   DateTime // Monday of the week
+  weekEnd     DateTime // Sunday of the week
+  meals       Json     // { monday: { breakfast, snack1, lunch, snack2, dinner }, tuesday: {...}, ... }
+  workouts    Json?    // { monday: { exercises, duration }, tuesday: {...}, ... }
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, weekStart])
 }
 
 model DailyPlan {
@@ -118,13 +158,15 @@ model DailyPlan {
 }
 
 model GroceryList {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  weekStart DateTime
-  items     Json     // [{ name, quantity, category, unit, checked }]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekStart   DateTime
+  items       Json     // [{ name, quantity, category, unit, checked, reason, emoji }]
+  totalItems  Int      @default(0)
+  checkedItems Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@unique([userId, weekStart])
 }
@@ -135,6 +177,7 @@ model ChatMessage {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   role      String   // user, assistant
   content   String
+  context   String?  // report_analysis, general, meal_help, workout_help
   createdAt DateTime @default(now())
 }
 

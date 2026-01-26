@@ -16,14 +16,24 @@ import {
   UserRound,
   Check,
   Sparkles,
+  MapPin,
+  Globe,
+  Users,
+  Droplets,
+  Bone,
+  Brain,
+  Sun,
+  Egg,
+  Leaf,
+  HelpCircle,
 } from 'lucide-react';
 
 const STEPS = [
-  { number: 1, title: 'Pregnancy Info', icon: Baby },
-  { number: 2, title: 'Physical Details', icon: Scale },
-  { number: 3, title: 'Health History', icon: Stethoscope },
-  { number: 4, title: 'Diet & Lifestyle', icon: Utensils },
-  { number: 5, title: 'Doctor Info', icon: UserRound },
+  { number: 1, title: 'About You', icon: UserRound },
+  { number: 2, title: 'Pregnancy', icon: Baby },
+  { number: 3, title: 'Physical', icon: Scale },
+  { number: 4, title: 'Diet', icon: Utensils },
+  { number: 5, title: 'Health Support', icon: Stethoscope },
 ];
 
 const months = [
@@ -38,69 +48,62 @@ const months = [
   { value: 9, label: 'Month 9', weeks: 'Weeks 36-40' },
 ];
 
+const countries = [
+  'Canada', 'United States', 'United Kingdom', 'India', 'Australia',
+  'Germany', 'France', 'UAE', 'Singapore', 'Other'
+];
+
+const languages = ['English', 'French', 'Hindi', 'Spanish', 'Arabic', 'Mandarin', 'Tamil', 'Punjabi'];
+
 const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', "Don't know"];
 
-const commonConditions = [
-  'Gestational Diabetes',
-  'Hypertension',
-  'Thyroid Issues',
-  'Anemia',
-  'Asthma',
-  'Heart Condition',
-  'Kidney Issues',
-  'None',
+const deficiencyOptions = [
+  { id: 'iron', label: 'Iron', icon: Droplets, color: 'red', hint: 'Low energy, dizziness, pale skin' },
+  { id: 'calcium', label: 'Calcium', icon: Bone, color: 'blue', hint: 'Bone & teeth support for baby' },
+  { id: 'b12', label: 'Vitamin B12', icon: Brain, color: 'purple', hint: 'Fatigue, weakness' },
+  { id: 'vitamin_d', label: 'Vitamin D', icon: Sun, color: 'amber', hint: 'Muscle weakness, bone pain' },
+  { id: 'protein', label: 'Protein', icon: Egg, color: 'orange', hint: 'Baby growth & development' },
+  { id: 'folate', label: 'Folate', icon: Leaf, color: 'green', hint: 'Neural tube development' },
+  { id: 'not_sure', label: "Not Sure", icon: HelpCircle, color: 'gray', hint: "We'll create a balanced plan" },
 ];
 
 const commonAllergies = ['Peanuts', 'Tree Nuts', 'Dairy', 'Eggs', 'Shellfish', 'Soy', 'Wheat/Gluten', 'Fish'];
-
-const exerciseLevels = [
-  { value: 'none', label: 'None', desc: 'No regular exercise' },
-  { value: 'light', label: 'Light', desc: '1-2 times/week' },
-  { value: 'moderate', label: 'Moderate', desc: '3-4 times/week' },
-  { value: 'active', label: 'Active', desc: '5+ times/week' },
-];
 
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  // Input helpers
   const [allergyInput, setAllergyInput] = useState('');
-  const [aversionInput, setAversionInput] = useState('');
-  const [medicationInput, setMedicationInput] = useState('');
 
   const [formData, setFormData] = useState({
-    // Step 1: Pregnancy Info
+    // Step 1: About You
+    fullName: '',
+    motherAge: '',
+    country: 'Canada',
+    city: '',
+    preferredLanguages: ['English'] as string[],
+
+    // Step 2: Pregnancy Info
     pregnancyMonth: 0,
     dueDate: '',
-    lastPeriodDate: '',
-    previousPregnancies: 0,
+    pregnancyType: 'single',
+    pregnancyCount: 1,
 
-    // Step 2: Physical Details
+    // Step 3: Physical Details
     heightCm: '',
     weightKg: '',
     prePregnancyWeight: '',
     bloodType: '',
 
-    // Step 3: Health History
-    existingConditions: [] as string[],
-    currentMedications: [] as string[],
-    complications: [] as string[],
-
-    // Step 4: Diet & Lifestyle
+    // Step 4: Diet
     dietPreference: 'non-veg',
     allergies: [] as string[],
     foodAversions: [] as string[],
-    exerciseLevel: 'moderate',
-    sleepHours: '',
-    waterIntakeGoal: 8,
 
-    // Step 5: Doctor Info
-    doctorName: '',
-    doctorPhone: '',
-    hospitalName: '',
+    // Step 5: Health Support (Deficiencies)
+    deficiencies: [] as string[],
+    existingConditions: [] as string[],
   });
 
   useEffect(() => {
@@ -110,38 +113,37 @@ export default function OnboardingPage() {
     }
   }, [router]);
 
-  const addToList = (field: 'allergies' | 'foodAversions' | 'currentMedications', value: string) => {
-    if (value.trim() && !formData[field].includes(value.trim())) {
-      setFormData({
-        ...formData,
-        [field]: [...formData[field], value.trim()],
-      });
-    }
-  };
-
-  const removeFromList = (field: 'allergies' | 'foodAversions' | 'currentMedications' | 'existingConditions', value: string) => {
-    setFormData({
-      ...formData,
-      [field]: formData[field].filter((item) => item !== value),
-    });
-  };
-
-  const toggleCondition = (condition: string) => {
-    if (condition === 'None') {
-      setFormData({ ...formData, existingConditions: [] });
-      return;
-    }
-    if (formData.existingConditions.includes(condition)) {
-      setFormData({
-        ...formData,
-        existingConditions: formData.existingConditions.filter((c) => c !== condition),
-      });
+  const toggleLanguage = (lang: string) => {
+    if (formData.preferredLanguages.includes(lang)) {
+      if (formData.preferredLanguages.length > 1) {
+        setFormData({
+          ...formData,
+          preferredLanguages: formData.preferredLanguages.filter((l) => l !== lang),
+        });
+      }
     } else {
       setFormData({
         ...formData,
-        existingConditions: [...formData.existingConditions.filter((c) => c !== 'None'), condition],
+        preferredLanguages: [...formData.preferredLanguages, lang],
       });
     }
+  };
+
+  const toggleDeficiency = (defId: string) => {
+    if (defId === 'not_sure') {
+      setFormData({ ...formData, deficiencies: ['not_sure'] });
+      return;
+    }
+
+    let newDeficiencies = formData.deficiencies.filter(d => d !== 'not_sure');
+
+    if (newDeficiencies.includes(defId)) {
+      newDeficiencies = newDeficiencies.filter((d) => d !== defId);
+    } else {
+      newDeficiencies = [...newDeficiencies, defId];
+    }
+
+    setFormData({ ...formData, deficiencies: newDeficiencies });
   };
 
   const toggleAllergy = (allergy: string) => {
@@ -158,18 +160,28 @@ export default function OnboardingPage() {
     }
   };
 
+  const addCustomAllergy = () => {
+    if (allergyInput.trim() && !formData.allergies.includes(allergyInput.trim())) {
+      setFormData({
+        ...formData,
+        allergies: [...formData.allergies, allergyInput.trim()],
+      });
+      setAllergyInput('');
+    }
+  };
+
   const canProceed = () => {
     switch (step) {
       case 1:
-        return formData.pregnancyMonth > 0 && formData.dueDate;
+        return formData.fullName && formData.country;
       case 2:
-        return true; // Physical details are optional
+        return formData.pregnancyMonth > 0 && formData.dueDate;
       case 3:
-        return true; // Health history is optional
+        return true;
       case 4:
-        return true; // Diet info has defaults
+        return true;
       case 5:
-        return true; // Doctor info is optional
+        return true;
       default:
         return true;
     }
@@ -189,10 +201,10 @@ export default function OnboardingPage() {
         },
         body: JSON.stringify({
           ...formData,
+          motherAge: formData.motherAge ? parseInt(formData.motherAge) : null,
           heightCm: formData.heightCm ? parseFloat(formData.heightCm) : null,
           weightKg: formData.weightKg ? parseFloat(formData.weightKg) : null,
           prePregnancyWeight: formData.prePregnancyWeight ? parseFloat(formData.prePregnancyWeight) : null,
-          sleepHours: formData.sleepHours ? parseFloat(formData.sleepHours) : null,
           bloodType: formData.bloodType === "Don't know" ? null : formData.bloodType,
         }),
       });
@@ -211,6 +223,19 @@ export default function OnboardingPage() {
     }
   };
 
+  const getDeficiencyColor = (color: string) => {
+    const colors: Record<string, string> = {
+      red: 'from-red-500 to-rose-500',
+      blue: 'from-blue-500 to-cyan-500',
+      purple: 'from-purple-500 to-violet-500',
+      amber: 'from-amber-500 to-yellow-500',
+      orange: 'from-orange-500 to-amber-500',
+      green: 'from-green-500 to-emerald-500',
+      gray: 'from-gray-500 to-slate-500',
+    };
+    return colors[color] || colors.gray;
+  };
+
   return (
     <div className="min-h-screen py-8 px-4 bg-gradient-to-br from-pink-50 to-purple-50">
       <div className="max-w-2xl mx-auto">
@@ -222,9 +247,9 @@ export default function OnboardingPage() {
               BirthTech.ai
             </span>
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Welcome to Your Pregnancy Journey</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Welcome, Mama!</h1>
           <p className="text-gray-600 mt-2">
-            Let's personalize your care plan. This only takes a few minutes.
+            Let's create your personalized care plan together.
           </p>
         </div>
 
@@ -277,16 +302,110 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* Step 1: Pregnancy Info */}
+          {/* Step 1: About You */}
           {step === 1 && (
             <div className="space-y-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 bg-pink-100 rounded-xl flex items-center justify-center">
-                  <Baby className="w-6 h-6 text-pink-500" />
+                  <UserRound className="w-6 h-6 text-pink-500" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Pregnancy Information</h2>
-                  <p className="text-gray-500 text-sm">Tell us about your pregnancy</p>
+                  <h2 className="text-xl font-semibold text-gray-900">Tell us about yourself</h2>
+                  <p className="text-gray-500 text-sm">We're here to support you</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Your Full Name *
+                </label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="Sarah Johnson"
+                  value={formData.fullName}
+                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Your Age
+                </label>
+                <input
+                  type="number"
+                  className="input-field"
+                  placeholder="28"
+                  value={formData.motherAge}
+                  onChange={(e) => setFormData({ ...formData, motherAge: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <MapPin className="w-4 h-4 inline mr-1" />
+                    Country *
+                  </label>
+                  <select
+                    className="input-field"
+                    value={formData.country}
+                    onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                  >
+                    {countries.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    City
+                  </label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="Toronto"
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  <Globe className="w-4 h-4 inline mr-1" />
+                  Preferred Languages
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {languages.map((lang) => (
+                    <button
+                      key={lang}
+                      type="button"
+                      onClick={() => toggleLanguage(lang)}
+                      className={`px-4 py-2 rounded-full text-sm transition-all ${
+                        formData.preferredLanguages.includes(lang)
+                          ? 'bg-purple-500 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {lang}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Pregnancy Info */}
+          {step === 2 && (
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                  <Baby className="w-6 h-6 text-purple-500" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Your Pregnancy Journey</h2>
+                  <p className="text-gray-500 text-sm">Every journey is beautiful</p>
                 </div>
               </div>
 
@@ -326,35 +445,49 @@ export default function OnboardingPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Last Menstrual Period (LMP)
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  <Users className="w-4 h-4 inline mr-1" />
+                  Pregnancy Type
                 </label>
-                <input
-                  type="date"
-                  className="input-field"
-                  value={formData.lastPeriodDate}
-                  onChange={(e) => setFormData({ ...formData, lastPeriodDate: e.target.value })}
-                />
-                <p className="text-xs text-gray-400 mt-1">Optional - helps us calculate more accurate dates</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Previous Pregnancies
-                </label>
-                <div className="flex gap-2">
-                  {[0, 1, 2, 3, 4].map((num) => (
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value: 'single', label: 'Single Baby' },
+                    { value: 'twins', label: 'Twins' },
+                    { value: 'triplets', label: 'Triplets+' },
+                  ].map((type) => (
                     <button
-                      key={num}
+                      key={type.value}
                       type="button"
-                      onClick={() => setFormData({ ...formData, previousPregnancies: num })}
-                      className={`w-12 h-12 rounded-xl font-medium transition-all ${
-                        formData.previousPregnancies === num
+                      onClick={() => setFormData({ ...formData, pregnancyType: type.value })}
+                      className={`p-3 rounded-xl text-center transition-all ${
+                        formData.pregnancyType === type.value
                           ? 'bg-purple-500 text-white'
                           : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
                       }`}
                     >
-                      {num === 4 ? '4+' : num}
+                      {type.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Which pregnancy is this?
+                </label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, pregnancyCount: num })}
+                      className={`w-14 h-14 rounded-xl font-medium transition-all ${
+                        formData.pregnancyCount === num
+                          ? 'bg-purple-500 text-white'
+                          : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      {num === 4 ? '4th+' : `${num}${num === 1 ? 'st' : num === 2 ? 'nd' : 'rd'}`}
                     </button>
                   ))}
                 </div>
@@ -362,8 +495,8 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* Step 2: Physical Details */}
-          {step === 2 && (
+          {/* Step 3: Physical Details */}
+          {step === 3 && (
             <div className="space-y-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
@@ -371,7 +504,7 @@ export default function OnboardingPage() {
                 </div>
                 <div>
                   <h2 className="text-xl font-semibold text-gray-900">Physical Details</h2>
-                  <p className="text-gray-500 text-sm">Helps us personalize nutrition recommendations</p>
+                  <p className="text-gray-500 text-sm">Helps us personalize your nutrition</p>
                 </div>
               </div>
 
@@ -413,7 +546,6 @@ export default function OnboardingPage() {
                   value={formData.prePregnancyWeight}
                   onChange={(e) => setFormData({ ...formData, prePregnancyWeight: e.target.value })}
                 />
-                <p className="text-xs text-gray-400 mt-1">Optional - helps track healthy weight gain</p>
               </div>
 
               <div>
@@ -440,105 +572,7 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* Step 3: Health History */}
-          {step === 3 && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                  <Stethoscope className="w-6 h-6 text-green-500" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Health History</h2>
-                  <p className="text-gray-500 text-sm">Helps us provide safe recommendations</p>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Existing Health Conditions
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {commonConditions.map((condition) => (
-                    <button
-                      key={condition}
-                      type="button"
-                      onClick={() => toggleCondition(condition)}
-                      className={`p-3 rounded-xl text-sm text-left flex items-center gap-2 transition-all ${
-                        (condition === 'None' && formData.existingConditions.length === 0) ||
-                        formData.existingConditions.includes(condition)
-                          ? 'bg-purple-500 text-white'
-                          : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      <div
-                        className={`w-5 h-5 rounded border flex items-center justify-center ${
-                          (condition === 'None' && formData.existingConditions.length === 0) ||
-                          formData.existingConditions.includes(condition)
-                            ? 'border-white bg-white/20'
-                            : 'border-gray-300'
-                        }`}
-                      >
-                        {((condition === 'None' && formData.existingConditions.length === 0) ||
-                          formData.existingConditions.includes(condition)) && (
-                          <Check className="w-3 h-3" />
-                        )}
-                      </div>
-                      {condition}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Current Medications
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    className="input-field flex-1"
-                    placeholder="e.g., Prenatal vitamins, Iron supplements"
-                    value={medicationInput}
-                    onChange={(e) => setMedicationInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addToList('currentMedications', medicationInput);
-                        setMedicationInput('');
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      addToList('currentMedications', medicationInput);
-                      setMedicationInput('');
-                    }}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200"
-                  >
-                    Add
-                  </button>
-                </div>
-                {formData.currentMedications.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {formData.currentMedications.map((med) => (
-                      <span
-                        key={med}
-                        className="inline-flex items-center gap-1 bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm"
-                      >
-                        {med}
-                        <button onClick={() => removeFromList('currentMedications', med)}>
-                          <X className="w-4 h-4" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Step 4: Diet & Lifestyle */}
+          {/* Step 4: Diet */}
           {step === 4 && (
             <div className="space-y-6">
               <div className="flex items-center gap-3 mb-4">
@@ -546,20 +580,20 @@ export default function OnboardingPage() {
                   <Utensils className="w-6 h-6 text-orange-500" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Diet & Lifestyle</h2>
-                  <p className="text-gray-500 text-sm">Customize your meal plans and recommendations</p>
+                  <h2 className="text-xl font-semibold text-gray-900">Diet Preferences</h2>
+                  <p className="text-gray-500 text-sm">We'll customize your meal plans</p>
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Diet Preference
+                  Diet Type
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-3">
                   {[
-                    { value: 'non-veg', label: 'Non-Veg', emoji: '' },
-                    { value: 'veg', label: 'Vegetarian', emoji: '' },
-                    { value: 'vegan', label: 'Vegan', emoji: '' },
+                    { value: 'veg', label: 'Vegetarian', desc: 'No meat or fish' },
+                    { value: 'egg', label: 'Eggetarian', desc: 'Veg + Eggs' },
+                    { value: 'non-veg', label: 'Non-Veg', desc: 'All foods' },
                   ].map((diet) => (
                     <button
                       key={diet.value}
@@ -571,8 +605,8 @@ export default function OnboardingPage() {
                           : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
                       }`}
                     >
-                      <span className="text-2xl mb-1">{diet.emoji}</span>
                       <div className="font-medium">{diet.label}</div>
+                      <div className="text-xs opacity-75 mt-1">{diet.desc}</div>
                     </button>
                   ))}
                 </div>
@@ -605,67 +639,25 @@ export default function OnboardingPage() {
                     placeholder="Add other allergies..."
                     value={allergyInput}
                     onChange={(e) => setAllergyInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addToList('allergies', allergyInput);
-                        setAllergyInput('');
-                      }
-                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomAllergy())}
                   />
                   <button
                     type="button"
-                    onClick={() => {
-                      addToList('allergies', allergyInput);
-                      setAllergyInput('');
-                    }}
+                    onClick={addCustomAllergy}
                     className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200"
                   >
                     Add
                   </button>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Food Aversions
-                </label>
-                <p className="text-xs text-gray-400 mb-2">Foods you can't stand right now</p>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    className="input-field flex-1"
-                    placeholder="e.g., Eggs, Coffee, Fish..."
-                    value={aversionInput}
-                    onChange={(e) => setAversionInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addToList('foodAversions', aversionInput);
-                        setAversionInput('');
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      addToList('foodAversions', aversionInput);
-                      setAversionInput('');
-                    }}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200"
-                  >
-                    Add
-                  </button>
-                </div>
-                {formData.foodAversions.length > 0 && (
+                {formData.allergies.filter(a => !commonAllergies.includes(a)).length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-3">
-                    {formData.foodAversions.map((aversion) => (
+                    {formData.allergies.filter(a => !commonAllergies.includes(a)).map((allergy) => (
                       <span
-                        key={aversion}
-                        className="inline-flex items-center gap-1 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm"
+                        key={allergy}
+                        className="inline-flex items-center gap-1 bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm"
                       >
-                        {aversion}
-                        <button onClick={() => removeFromList('foodAversions', aversion)}>
+                        {allergy}
+                        <button onClick={() => toggleAllergy(allergy)}>
                           <X className="w-4 h-4" />
                         </button>
                       </span>
@@ -673,125 +665,102 @@ export default function OnboardingPage() {
                   </div>
                 )}
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Exercise Level
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {exerciseLevels.map((level) => (
-                    <button
-                      key={level.value}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, exerciseLevel: level.value })}
-                      className={`p-3 rounded-xl text-left transition-all ${
-                        formData.exerciseLevel === level.value
-                          ? 'bg-purple-500 text-white'
-                          : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      <div className="font-medium">{level.label}</div>
-                      <div className="text-xs opacity-75">{level.desc}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Sleep (hours/night)
-                  </label>
-                  <input
-                    type="number"
-                    className="input-field"
-                    placeholder="8"
-                    value={formData.sleepHours}
-                    onChange={(e) => setFormData({ ...formData, sleepHours: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Water Goal (glasses/day)
-                  </label>
-                  <input
-                    type="number"
-                    className="input-field"
-                    placeholder="8"
-                    value={formData.waterIntakeGoal}
-                    onChange={(e) => setFormData({ ...formData, waterIntakeGoal: parseInt(e.target.value) || 8 })}
-                  />
-                </div>
-              </div>
             </div>
           )}
 
-          {/* Step 5: Doctor Info */}
+          {/* Step 5: Health Support (Deficiencies) */}
           {step === 5 && (
             <div className="space-y-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
-                  <UserRound className="w-6 h-6 text-indigo-500" />
+                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                  <Stethoscope className="w-6 h-6 text-green-500" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Your Care Team</h2>
-                  <p className="text-gray-500 text-sm">Optional - for your reference</p>
+                  <h2 className="text-xl font-semibold text-gray-900">Health Support</h2>
+                  <p className="text-gray-500 text-sm">Let us know how we can help</p>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Doctor/Midwife Name
-                </label>
-                <input
-                  type="text"
-                  className="input-field"
-                  placeholder="Dr. Smith"
-                  value={formData.doctorName}
-                  onChange={(e) => setFormData({ ...formData, doctorName: e.target.value })}
-                />
-              </div>
+              {/* Deficiencies Section */}
+              <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-5">
+                <h3 className="font-semibold text-gray-900 mb-2">
+                  Common Pregnancy Deficiencies
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Select if you've been told you're low in any of these, or if you experience related symptoms.
+                  This helps us create better meal plans for you.
+                </p>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Doctor's Phone
-                </label>
-                <input
-                  type="tel"
-                  className="input-field"
-                  placeholder="+1 (555) 123-4567"
-                  value={formData.doctorPhone}
-                  onChange={(e) => setFormData({ ...formData, doctorPhone: e.target.value })}
-                />
-              </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {deficiencyOptions.map((def) => {
+                    const Icon = def.icon;
+                    const isSelected = formData.deficiencies.includes(def.id);
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Hospital/Clinic Name
-                </label>
-                <input
-                  type="text"
-                  className="input-field"
-                  placeholder="City General Hospital"
-                  value={formData.hospitalName}
-                  onChange={(e) => setFormData({ ...formData, hospitalName: e.target.value })}
-                />
+                    return (
+                      <button
+                        key={def.id}
+                        type="button"
+                        onClick={() => toggleDeficiency(def.id)}
+                        className={`p-4 rounded-xl text-left transition-all border-2 ${
+                          isSelected
+                            ? `border-transparent bg-gradient-to-r ${getDeficiencyColor(def.color)} text-white shadow-lg`
+                            : 'border-gray-200 bg-white hover:border-purple-300 hover:shadow'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                            isSelected ? 'bg-white/20' : 'bg-gray-100'
+                          }`}>
+                            <Icon className={`w-5 h-5 ${isSelected ? 'text-white' : 'text-gray-600'}`} />
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-medium flex items-center gap-2">
+                              {def.label}
+                              {isSelected && <Check className="w-4 h-4" />}
+                            </div>
+                            <div className={`text-xs ${isSelected ? 'text-white/80' : 'text-gray-500'}`}>
+                              {def.hint}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <p className="text-xs text-gray-500 mt-4 text-center">
+                  You can update this anytime in your profile settings
+                </p>
               </div>
 
               {/* Summary Preview */}
-              <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 mt-6">
+              <div className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl p-5 text-white">
                 <div className="flex items-center gap-2 mb-3">
-                  <Sparkles className="w-5 h-5 text-purple-500" />
-                  <h3 className="font-semibold text-gray-900">Ready to Start!</h3>
+                  <Sparkles className="w-5 h-5" />
+                  <h3 className="font-semibold">Your Personalized Care Plan</h3>
                 </div>
-                <p className="text-sm text-gray-600">
-                  We'll create a personalized care plan based on your profile:
+                <p className="text-sm text-purple-100 mb-4">
+                  Based on your profile, we'll create:
                 </p>
-                <ul className="mt-2 text-sm text-gray-600 space-y-1">
-                  <li>• Daily meal plans tailored to Month {formData.pregnancyMonth}</li>
-                  <li>• Safe exercise routines for your fitness level</li>
-                  <li>• Personalized nutrition tips for your diet ({formData.dietPreference})</li>
-                  <li>• AI companion available 24/7 for questions</li>
+                <ul className="text-sm space-y-2">
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4" />
+                    Daily meal plans for Month {formData.pregnancyMonth || '?'}
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4" />
+                    {formData.deficiencies.length > 0
+                      ? `Nutrition focused on ${formData.deficiencies.filter(d => d !== 'not_sure').join(', ') || 'balanced nutrition'}`
+                      : 'Balanced nutrition for your needs'}
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4" />
+                    {formData.dietPreference === 'veg' ? 'Vegetarian' : formData.dietPreference === 'egg' ? 'Eggetarian' : 'Non-veg'} recipes
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4" />
+                    AI companion available 24/7
+                  </li>
                 </ul>
               </div>
             </div>
@@ -845,7 +814,7 @@ export default function OnboardingPage() {
             <button onClick={() => setStep(step + 1)} className="text-purple-600 hover:underline">
               Skip this step
             </button>{' '}
-            • You can always update later
+            - You can update later
           </p>
         )}
       </div>
