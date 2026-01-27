@@ -27,12 +27,11 @@ import {
 
 // BirthChair product images - from public/images/birth_chair/
 const productImages = [
-  { id: 1, src: '/images/birth_chair/main.jpg', alt: 'BirthChair Main View' },
-  { id: 2, src: '/images/birth_chair/side.jpg', alt: 'BirthChair Side View' },
-  { id: 3, src: '/images/birth_chair/features.jpg', alt: 'BirthChair Features' },
-  { id: 4, src: '/images/birth_chair/cushions.jpg', alt: 'BirthChair Cushions' },
-  { id: 5, src: '/images/birth_chair/portable.jpg', alt: 'BirthChair Portable' },
-  { id: 6, src: '/images/birth_chair/in-use.jpg', alt: 'BirthChair In Use' },
+  { id: 1, src: '/images/birth_chair/1.png', alt: 'BirthChair Main View' },
+  { id: 2, src: '/images/birth_chair/2.png', alt: 'BirthChair Side View' },
+  { id: 3, src: '/images/birth_chair/3.png', alt: 'BirthChair Features' },
+  { id: 4, src: '/images/birth_chair/4.png', alt: 'BirthChair Detail View' },
+  { id: 5, src: '/images/birth_chair/5.png', alt: 'BirthChair In Use' },
 ];
 
 const features = [
@@ -158,12 +157,13 @@ export default function ProductsPage() {
           <div className="space-y-4">
             {/* Main Image */}
             <div className="relative bg-gray-100 rounded-2xl aspect-square overflow-hidden group">
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-cyan-50 p-8">
-                <div className="text-center">
-                  <Armchair className="w-48 h-48 text-cyan-600 mx-auto" />
-                  <p className="text-gray-500 mt-4 text-sm">{productImages[selectedImage].alt}</p>
-                </div>
-              </div>
+              <Image
+                src={productImages[selectedImage].src}
+                alt={productImages[selectedImage].alt}
+                fill
+                className="object-contain"
+                priority
+              />
 
               {/* Zoom Button */}
               <button
@@ -199,15 +199,18 @@ export default function ProductsPage() {
                 <button
                   key={image.id}
                   onClick={() => setSelectedImage(index)}
-                  className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${
+                  className={`relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${
                     selectedImage === index
                       ? 'border-purple-500 ring-2 ring-purple-200'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <div className="w-full h-full bg-gradient-to-br from-blue-50 to-cyan-50 flex items-center justify-center">
-                    <Armchair className="w-8 h-8 text-cyan-600" />
-                  </div>
+                  <Image
+                    src={image.src}
+                    alt={image.alt}
+                    fill
+                    className="object-cover"
+                  />
                 </button>
               ))}
             </div>
