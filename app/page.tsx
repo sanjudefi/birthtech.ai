@@ -220,7 +220,7 @@ export default function Home() {
 
       {/* Pricing Section */}
       <section id="pricing" className="py-20 px-4 bg-white">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl font-bold text-center text-gray-900 mb-4">
             Simple, Transparent Pricing
           </h2>
@@ -228,9 +228,50 @@ export default function Home() {
             Choose the plan that works best for you
           </p>
 
-          <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
-            {/* Monthly Plan */}
+          <div className="grid md:grid-cols-3 gap-6">
+            {/* Free Plan */}
             <div className="card border-2 border-gray-200">
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Free</h3>
+              <div className="flex items-baseline gap-1 mb-4">
+                <span className="text-4xl font-bold text-gray-900">$0</span>
+                <span className="text-gray-500">/forever</span>
+              </div>
+              <ul className="space-y-3 mb-6">
+                <li className="flex items-center gap-2 text-gray-600">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  2 AI chat assistant queries/day
+                </li>
+                <li className="flex items-center gap-2 text-gray-600">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  Basic meal suggestions
+                </li>
+                <li className="flex items-center gap-2 text-gray-600">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  Pregnancy tips & articles
+                </li>
+                <li className="flex items-center gap-2 text-gray-400">
+                  <X className="w-5 h-5 text-gray-300" />
+                  <span className="line-through">Personalized meal plans</span>
+                </li>
+                <li className="flex items-center gap-2 text-gray-400">
+                  <X className="w-5 h-5 text-gray-300" />
+                  <span className="line-through">Grocery list & PDF export</span>
+                </li>
+                <li className="flex items-center gap-2 text-gray-400">
+                  <X className="w-5 h-5 text-gray-300" />
+                  <span className="line-through">Workout routines</span>
+                </li>
+              </ul>
+              <Link href="/auth/signup?plan=free" className="btn-secondary w-full block text-center">
+                Start Now
+              </Link>
+            </div>
+
+            {/* Monthly Plan */}
+            <div className="card border-2 border-purple-500 relative">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-purple-600 to-pink-500 text-white text-sm font-medium px-4 py-1 rounded-full">
+                Popular
+              </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">Monthly</h3>
               <div className="flex items-baseline gap-1 mb-4">
                 <span className="text-4xl font-bold text-gray-900">$9.99</span>
@@ -238,11 +279,11 @@ export default function Home() {
               </div>
               <ul className="space-y-3 mb-6">
                 {[
+                  'Unlimited AI chat assistant',
                   'Personalized daily meal plans',
                   'Weekly workout routines',
                   'Grocery list with PDF export',
                   'Supplement tracking',
-                  'AI chat assistant',
                   'Calendar & progress tracking',
                 ].map((item, i) => (
                   <li key={i} className="flex items-center gap-2 text-gray-600">
@@ -251,14 +292,14 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
-              <Link href="/auth/signup?plan=monthly" className="btn-secondary w-full block text-center">
+              <Link href="/auth/signup?plan=monthly" className="btn-primary w-full block text-center">
                 Get Started
               </Link>
             </div>
 
             {/* Annual Plan */}
-            <div className="card border-2 border-purple-500 relative">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-purple-600 to-pink-500 text-white text-sm font-medium px-4 py-1 rounded-full">
+            <div className="card border-2 border-gray-200 relative">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-green-500 text-white text-sm font-medium px-4 py-1 rounded-full">
                 Save 20%
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">Annual</h3>
@@ -274,7 +315,6 @@ export default function Home() {
                   'Priority support',
                   'Early access to new features',
                   'Exclusive content',
-                  'Family sharing (coming soon)',
                 ].map((item, i) => (
                   <li key={i} className="flex items-center gap-2 text-gray-600">
                     <CheckCircle className="w-5 h-5 text-green-500" />
@@ -282,7 +322,7 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
-              <Link href="/auth/signup?plan=annual" className="btn-primary w-full block text-center">
+              <Link href="/auth/signup?plan=annual" className="btn-secondary w-full block text-center">
                 Get Annual Plan
               </Link>
             </div>
@@ -412,6 +452,26 @@ export default function Home() {
                     className="hover:text-white transition-colors"
                   >
                     About Us / Team
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://thebirthtech.com/problem/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-white transition-colors"
+                  >
+                    Problem
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://thebirthtech.com/our-approach/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-white transition-colors"
+                  >
+                    Our Approach
                   </a>
                 </li>
               </ul>
