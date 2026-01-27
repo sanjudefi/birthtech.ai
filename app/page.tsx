@@ -80,6 +80,9 @@ export default function Home() {
             <Link href="#pricing" className="text-gray-600 hover:text-purple-600 font-medium">
               Pricing
             </Link>
+            <Link href="/products" className="text-gray-600 hover:text-purple-600 font-medium">
+              Products
+            </Link>
           </nav>
           <div className="flex items-center gap-4">
             <Link href="/auth/login" className="text-gray-600 hover:text-purple-600 font-medium">
@@ -362,6 +365,9 @@ export default function Home() {
                 </li>
                 <li>
                   <Link href="#pricing" className="hover:text-white transition-colors">Pricing</Link>
+                </li>
+                <li>
+                  <Link href="/products" className="hover:text-white transition-colors">Products</Link>
                 </li>
                 <li>
                   <Link href="/auth/login" className="hover:text-white transition-colors">Sign In</Link>
