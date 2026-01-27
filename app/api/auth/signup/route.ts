@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
+import { sendWelcomeEmail } from '@/lib/email';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'birthtech-jwt-secret-2026';
 
@@ -40,6 +42,10 @@ export async function POST(request: NextRequest) {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 12);
 
+    // Generate verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
     // Create user
     const user = await prisma.user.create({
       data: {
@@ -47,8 +53,21 @@ export async function POST(request: NextRequest) {
         passwordHash,
         firstName,
         lastName,
+        verificationToken,
+        verificationExpires,
       },
     });
+
+    // Send welcome/verification email
+    const emailResult = await sendWelcomeEmail(
+      user.email,
+      firstName || 'there',
+      verificationToken
+    );
+
+    if (!emailResult.success) {
+      console.error('Failed to send welcome email:', emailResult.error);
+    }
 
     // Generate JWT
     const token = jwt.sign(
@@ -64,7 +83,9 @@ export async function POST(request: NextRequest) {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        emailVerified: user.emailVerified,
       },
+      message: 'Account created! Please check your email to verify your account.',
     });
   } catch (error: any) {
     console.error('Signup error:', error);

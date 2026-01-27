@@ -9,18 +9,20 @@ datasource db {
 }
 
 model User {
-  id               String            @id @default(cuid())
-  email            String            @unique
-  passwordHash     String
-  firstName        String?
-  lastName         String?
-  emailVerified    Boolean           @default(false)
-  isAdmin          Boolean           @default(false)
-  resetToken       String?
-  resetExpires     DateTime?
-  stripeCustomerId String?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  id                  String            @id @default(cuid())
+  email               String            @unique
+  passwordHash        String
+  firstName           String?
+  lastName            String?
+  emailVerified       Boolean           @default(false)
+  verificationToken   String?
+  verificationExpires DateTime?
+  isAdmin             Boolean           @default(false)
+  resetToken          String?
+  resetExpires        DateTime?
+  stripeCustomerId    String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
   subscription     Subscription?
   pregnancyProfile PregnancyProfile?
   dailyPlans       DailyPlan[]

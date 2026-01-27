@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -13,7 +13,6 @@ import {
   AlertTriangle,
   CheckCircle,
   X,
-  Eye,
   Trash2,
   Calendar,
   Utensils,
@@ -21,10 +20,12 @@ import {
   FileSearch,
   ChevronRight,
   Plus,
-  Clock,
   AlertCircle,
   Check,
   History,
+  File,
+  Image as ImageIcon,
+  FileUp,
 } from 'lucide-react';
 
 interface MedicalReport {
@@ -71,6 +72,7 @@ const REPORT_TYPES = [
 
 export default function ReportsPage() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [reports, setReports] = useState<MedicalReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -79,11 +81,13 @@ export default function ReportsPage() {
   const [analysis, setAnalysis] = useState<ReportAnalysis | null>(null);
   const [activeTab, setActiveTab] = useState<'summary' | 'diet' | 'workout'>('summary');
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileContent, setFileContent] = useState('');
   const [uploadForm, setUploadForm] = useState({
-    fileName: '',
     reportType: 'general',
     reportDate: new Date().toISOString().split('T')[0],
-    content: '',
+    notes: '',
   });
 
   useEffect(() => {
@@ -111,71 +115,137 @@ export default function ReportsPage() {
     }
   };
 
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleFileSelect(files[0]);
+    }
+  }, []);
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      handleFileSelect(files[0]);
+    }
+  };
+
+  const handleFileSelect = async (file: File) => {
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg', 'text/plain'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Please upload a PDF, image (JPG/PNG), or text file.');
+      return;
+    }
+
+    setSelectedFile(file);
+
+    // Read file content for text files
+    if (file.type === 'text/plain') {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        setFileContent(content);
+      };
+      reader.readAsText(file);
+    } else {
+      // For PDF and images, we'll extract text on the server or prompt for manual entry
+      setFileContent('');
+    }
+  };
+
   const handleUpload = async () => {
-    if (!uploadForm.fileName || !uploadForm.content) return;
+    if (!selectedFile) return;
 
     const token = localStorage.getItem('token');
     if (!token) return;
 
     setUploading(true);
     try {
-      // Create report record
-      const res = await fetch('/api/reports', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          fileName: uploadForm.fileName,
-          fileType: 'text',
-          reportType: uploadForm.reportType,
-          reportDate: uploadForm.reportDate,
-          notes: uploadForm.content,
-        }),
-      });
+      // For MVP: Convert file to base64 and send
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64Content = e.target?.result as string;
 
-      if (res.ok) {
-        const { report } = await res.json();
-
-        // Analyze the report
-        setAnalyzing(true);
-        setShowUploadModal(false);
-        setSelectedReport(report);
-
-        const analysisRes = await fetch('/api/ai/analyze-report', {
+        // Create report record
+        const res = await fetch('/api/reports', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            reportId: report.id,
-            reportContent: uploadForm.content,
+            fileName: selectedFile.name,
+            fileType: selectedFile.type.split('/')[1] || 'unknown',
+            fileContent: base64Content,
             reportType: uploadForm.reportType,
+            reportDate: uploadForm.reportDate,
+            notes: uploadForm.notes || fileContent,
           }),
         });
 
-        if (analysisRes.ok) {
-          const analysisData = await analysisRes.json();
-          setAnalysis(analysisData.analysis);
-          setActiveTab('summary');
-        }
+        if (res.ok) {
+          const { report } = await res.json();
 
-        // Refresh reports list
-        fetchReports(token);
-        setUploadForm({
-          fileName: '',
-          reportType: 'general',
-          reportDate: new Date().toISOString().split('T')[0],
-          content: '',
-        });
-      }
+          // Analyze the report
+          setAnalyzing(true);
+          setShowUploadModal(false);
+          setSelectedReport(report);
+
+          const analysisRes = await fetch('/api/ai/analyze-report', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              reportId: report.id,
+              reportContent: uploadForm.notes || fileContent || `Uploaded file: ${selectedFile.name}`,
+              reportType: uploadForm.reportType,
+            }),
+          });
+
+          if (analysisRes.ok) {
+            const analysisData = await analysisRes.json();
+            setAnalysis(analysisData.analysis);
+            setActiveTab('summary');
+          }
+
+          // Refresh reports list
+          fetchReports(token);
+          resetUploadForm();
+        }
+        setUploading(false);
+        setAnalyzing(false);
+      };
+      reader.readAsDataURL(selectedFile);
     } catch (error) {
       console.error('Error uploading report:', error);
-    } finally {
       setUploading(false);
       setAnalyzing(false);
+    }
+  };
+
+  const resetUploadForm = () => {
+    setSelectedFile(null);
+    setFileContent('');
+    setUploadForm({
+      reportType: 'general',
+      reportDate: new Date().toISOString().split('T')[0],
+      notes: '',
+    });
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -231,6 +301,16 @@ export default function ReportsPage() {
       day: 'numeric',
       year: 'numeric',
     });
+  };
+
+  const getFileIcon = (type: string) => {
+    if (type.includes('image') || ['jpg', 'jpeg', 'png'].includes(type)) {
+      return <ImageIcon className="w-5 h-5" />;
+    }
+    if (type === 'pdf') {
+      return <FileText className="w-5 h-5" />;
+    }
+    return <File className="w-5 h-5" />;
   };
 
   if (loading) {
@@ -313,7 +393,12 @@ export default function ReportsPage() {
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-900 truncate">{report.fileName}</p>
+                            <div className="flex items-center gap-2">
+                              <span className="text-purple-600">
+                                {getFileIcon(report.fileType)}
+                              </span>
+                              <p className="font-medium text-gray-900 truncate">{report.fileName}</p>
+                            </div>
                             <p className="text-sm text-gray-500 capitalize">
                               {report.reportType.replace('_', ' ')}
                             </p>
@@ -356,11 +441,16 @@ export default function ReportsPage() {
                 {/* Report Header */}
                 <div className="p-4 border-b border-gray-100">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="font-semibold text-gray-900">{selectedReport.fileName}</h2>
-                      <p className="text-sm text-gray-500 capitalize">
-                        {selectedReport.reportType.replace('_', ' ')} • {formatDate(selectedReport.createdAt)}
-                      </p>
+                    <div className="flex items-center gap-3">
+                      <span className="text-purple-600">
+                        {getFileIcon(selectedReport.fileType)}
+                      </span>
+                      <div>
+                        <h2 className="font-semibold text-gray-900">{selectedReport.fileName}</h2>
+                        <p className="text-sm text-gray-500 capitalize">
+                          {selectedReport.reportType.replace('_', ' ')} • {formatDate(selectedReport.createdAt)}
+                        </p>
+                      </div>
                     </div>
                     <button
                       onClick={() => {
@@ -666,11 +756,14 @@ export default function ReportsPage() {
         </div>
       </main>
 
-      {/* Upload Modal */}
+      {/* Upload Modal with File Upload */}
       {showUploadModal && (
         <div
           className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-          onClick={() => setShowUploadModal(false)}
+          onClick={() => {
+            setShowUploadModal(false);
+            resetUploadForm();
+          }}
         >
           <div
             className="bg-white rounded-2xl w-full max-w-lg overflow-hidden"
@@ -679,7 +772,10 @@ export default function ReportsPage() {
             <div className="p-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="font-semibold text-gray-900">Upload Medical Report</h3>
               <button
-                onClick={() => setShowUploadModal(false)}
+                onClick={() => {
+                  setShowUploadModal(false);
+                  resetUploadForm();
+                }}
                 className="p-2 hover:bg-gray-100 rounded-full"
               >
                 <X className="w-5 h-5 text-gray-500" />
@@ -687,17 +783,61 @@ export default function ReportsPage() {
             </div>
 
             <div className="p-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Report Name
-                </label>
+              {/* File Upload Zone */}
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
+                  isDragging
+                    ? 'border-purple-500 bg-purple-50'
+                    : selectedFile
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-gray-300 hover:border-purple-400 hover:bg-purple-50/50'
+                }`}
+              >
                 <input
-                  type="text"
-                  value={uploadForm.fileName}
-                  onChange={(e) => setUploadForm({ ...uploadForm, fileName: e.target.value })}
-                  placeholder="e.g., Blood Test Results - Jan 2026"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,.txt"
+                  onChange={handleFileInputChange}
+                  className="hidden"
                 />
+
+                {selectedFile ? (
+                  <div className="flex flex-col items-center">
+                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                      <CheckCircle className="w-8 h-8 text-green-600" />
+                    </div>
+                    <p className="font-medium text-gray-900">{selectedFile.name}</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {(selectedFile.size / 1024).toFixed(1)} KB • {selectedFile.type.split('/')[1]?.toUpperCase()}
+                    </p>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        resetUploadForm();
+                      }}
+                      className="mt-3 text-sm text-purple-600 hover:underline"
+                    >
+                      Choose different file
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <FileUp className="w-8 h-8 text-purple-600" />
+                    </div>
+                    <p className="font-medium text-gray-900 mb-1">
+                      {isDragging ? 'Drop your file here' : 'Drag & drop your report here'}
+                    </p>
+                    <p className="text-sm text-gray-500 mb-3">or click to browse</p>
+                    <p className="text-xs text-gray-400">
+                      Supports PDF, JPG, PNG, TXT (Max 10MB)
+                    </p>
+                  </>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -732,31 +872,34 @@ export default function ReportsPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Report Content / Key Findings
+                  Additional Notes / Key Findings (Optional)
                 </label>
                 <textarea
-                  value={uploadForm.content}
-                  onChange={(e) => setUploadForm({ ...uploadForm, content: e.target.value })}
-                  placeholder="Paste or type the key findings from your report here...&#10;&#10;Example:&#10;- Hemoglobin: 11.5 g/dL (slightly low)&#10;- Iron: 50 mcg/dL&#10;- Blood pressure: 120/80&#10;- Glucose: Normal"
-                  rows={8}
+                  value={uploadForm.notes}
+                  onChange={(e) => setUploadForm({ ...uploadForm, notes: e.target.value })}
+                  placeholder="Enter any key findings or notes from your report for better AI analysis..."
+                  rows={4}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
                 />
                 <p className="text-xs text-gray-500 mt-2">
-                  Enter the main findings, values, or notes from your medical report for AI analysis
+                  Adding key values helps the AI provide more accurate recommendations
                 </p>
               </div>
             </div>
 
             <div className="p-4 border-t border-gray-100 flex gap-3">
               <button
-                onClick={() => setShowUploadModal(false)}
+                onClick={() => {
+                  setShowUploadModal(false);
+                  resetUploadForm();
+                }}
                 className="flex-1 py-3 border border-gray-200 rounded-xl font-medium text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleUpload}
-                disabled={!uploadForm.fileName || !uploadForm.content || uploading}
+                disabled={!selectedFile || uploading}
                 className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-xl font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {uploading ? (
