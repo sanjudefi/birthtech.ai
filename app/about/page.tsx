@@ -17,22 +17,36 @@ import {
 
 const teamMembers = [
   {
-    name: 'Engineering Team',
-    role: 'Product Development',
-    description: 'Passionate engineers with diverse expertise dedicated to making childbirth safe and comfortable.',
-    image: '/images/team/engineering.jpg',
+    name: 'Veena Venu',
+    role: 'Co-Founder and Chief Executive Officer',
+    description: 'Electronics Engineer with experience in startups, possessing extensive knowledge of product development and fundraising.',
+    image: '/images/team/veena-venu.png',
+    initials: 'VV',
+    color: 'from-purple-400 to-purple-600',
   },
   {
-    name: 'Healthcare Advisors',
-    role: 'Medical Guidance',
-    description: 'Experienced healthcare professionals ensuring our solutions meet the highest medical standards.',
-    image: '/images/team/healthcare.jpg',
+    name: 'Sanjeeva Kumar Muddam',
+    role: 'Co-Founder and Chief Executive Officer - Global Operations',
+    description: 'Entrepreneur with 14 years of experience in C-level and managerial roles, specializing in product development and marketing.',
+    image: '/images/team/sanjeeva-kumar.png',
+    initials: 'SK',
+    color: 'from-blue-400 to-blue-600',
   },
   {
-    name: 'AI Research Team',
-    role: 'Technology Innovation',
-    description: 'AI specialists developing cutting-edge algorithms for personalized pregnancy care.',
-    image: '/images/team/ai-team.jpg',
+    name: 'Janice Joseph',
+    role: 'Co-Founder and Chief of Regulatory Affairs & Public Relations',
+    description: 'Experienced and passionate professional in Public and Regulatory Affairs within the healthcare sector, with extensive experience across various verticals.',
+    image: '/images/team/janice-joseph.png',
+    initials: 'JJ',
+    color: 'from-pink-400 to-pink-600',
+  },
+  {
+    name: 'Ramakrishna Kiran',
+    role: 'Co-Founder and Chief Technology Officer',
+    description: 'Expert in full stack development with over 10 years of experience, specializing in building end-to-end systems.',
+    image: '/images/team/ramakrishna-kiran.png',
+    initials: 'RK',
+    color: 'from-orange-400 to-red-500',
   },
 ];
 
@@ -291,24 +305,46 @@ export default function AboutPage() {
       {/* Team Section */}
       <section className="py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Our Team</h2>
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 bg-purple-100 px-4 py-2 rounded-full text-purple-700 text-sm font-medium mb-4">
+              <Users className="w-4 h-4" />
+              <span>Team</span>
+            </div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Meet Our Leadership</h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              A diverse team of engineers, healthcare professionals, and AI specialists
-              working together to transform maternal care.
+              A passionate team of entrepreneurs, engineers, and healthcare professionals
+              united by a mission to transform maternal care globally.
             </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {teamMembers.map((member, index) => (
-              <div key={index} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                <div className="h-48 bg-gradient-to-br from-purple-200 to-pink-200 flex items-center justify-center">
-                  <Users className="w-20 h-20 text-purple-400" />
+              <div key={index} className="text-center group">
+                {/* Circular Photo/Avatar */}
+                <div className="relative mx-auto mb-6">
+                  <div className={`w-36 h-36 rounded-full bg-gradient-to-br ${member.color} p-1 mx-auto`}>
+                    <div className="w-full h-full rounded-full bg-gray-100 overflow-hidden flex items-center justify-center">
+                      <Image
+                        src={member.image}
+                        alt={member.name}
+                        width={144}
+                        height={144}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent) {
+                            parent.innerHTML = `<span class="text-3xl font-bold text-gray-500">${member.initials}</span>`;
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="p-6">
-                  <h3 className="font-bold text-gray-900 text-lg">{member.name}</h3>
-                  <p className="text-purple-600 text-sm mb-3">{member.role}</p>
-                  <p className="text-gray-600 text-sm">{member.description}</p>
-                </div>
+                {/* Info */}
+                <h3 className="font-bold text-gray-900 text-lg mb-1">{member.name}</h3>
+                <p className="text-purple-600 text-sm font-medium mb-3 px-2">{member.role}</p>
+                <p className="text-gray-600 text-sm leading-relaxed">{member.description}</p>
               </div>
             ))}
           </div>
