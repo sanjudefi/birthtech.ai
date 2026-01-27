@@ -125,6 +125,9 @@ export default function ProductsPage() {
             <Link href="/products" className="text-purple-600 font-medium">
               Products
             </Link>
+            <Link href="/about" className="text-gray-600 hover:text-purple-600 font-medium">
+              About Us
+            </Link>
           </nav>
           <div className="flex items-center gap-4">
             <Link href="/auth/login" className="text-gray-600 hover:text-purple-600 font-medium">
