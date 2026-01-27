@@ -44,15 +44,17 @@ interface MealItem {
   prepTime?: string;
 }
 
+interface DayMeals {
+  breakfast: MealItem;
+  snack1?: MealItem;
+  lunch: MealItem;
+  snack2?: MealItem;
+  dinner: MealItem;
+  snacks?: MealItem[];
+}
+
 interface WeeklyMeals {
-  [day: string]: {
-    breakfast: MealItem;
-    snack1?: MealItem;
-    lunch: MealItem;
-    snack2?: MealItem;
-    dinner: MealItem;
-    snacks?: MealItem[];
-  };
+  [day: string]: DayMeals;
 }
 
 interface WeeklyPlanRecord {
@@ -380,7 +382,7 @@ function MealsContent() {
 
                     {DAYS.map((day, i) => {
                       const dayKey = day.toLowerCase();
-                      const mealData = weeklyPlan[dayKey]?.[meal as keyof typeof weeklyPlan[string]];
+                      const mealData = weeklyPlan[dayKey]?.[meal as keyof Omit<DayMeals, 'snacks'>] as MealItem | undefined;
                       const today = isToday(weekDates[i]);
 
                       return (
@@ -443,7 +445,7 @@ function MealsContent() {
                       {MEALS.map((meal) => {
                         const mealInfo = MEAL_LABELS[meal as keyof typeof MEAL_LABELS];
                         const Icon = mealInfo.icon;
-                        const mealData = weeklyPlan[dayKey]?.[meal as keyof typeof weeklyPlan[string]];
+                        const mealData = weeklyPlan[dayKey]?.[meal as keyof Omit<DayMeals, 'snacks'>] as MealItem | undefined;
 
                         return (
                           <div key={meal} className="flex items-center gap-3">
@@ -498,7 +500,7 @@ function MealsContent() {
               onClick={(e) => e.stopPropagation()}
             >
               {(() => {
-                const mealData = weeklyPlan[selectedMeal.day]?.[selectedMeal.meal as keyof typeof weeklyPlan[string]];
+                const mealData = weeklyPlan[selectedMeal.day]?.[selectedMeal.meal as keyof Omit<DayMeals, 'snacks'>] as MealItem | undefined;
                 const mealInfo = MEAL_LABELS[selectedMeal.meal as keyof typeof MEAL_LABELS];
                 const Icon = mealInfo.icon;
 

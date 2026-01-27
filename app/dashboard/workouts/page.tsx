@@ -55,7 +55,14 @@ interface DayWorkout {
 }
 
 interface WeeklyWorkoutPlan {
-  [key: string]: DayWorkout;
+  [key: string]: DayWorkout | number | string | string[] | undefined;
+  monday?: DayWorkout;
+  tuesday?: DayWorkout;
+  wednesday?: DayWorkout;
+  thursday?: DayWorkout;
+  friday?: DayWorkout;
+  saturday?: DayWorkout;
+  sunday?: DayWorkout;
   weekNumber?: number;
   weeklyGoal?: string;
   safetyReminders?: string[];
@@ -305,7 +312,7 @@ export default function WorkoutsPage() {
 
   const getDayProgress = (day: string) => {
     if (!weeklyPlan || !weeklyPlan[day]) return 0;
-    const workout = weeklyPlan[day];
+    const workout = weeklyPlan[day] as DayWorkout;
     if (workout.restDay || workout.isRestDay) return 100;
 
     const exercises = workout.exercises || [];
@@ -325,7 +332,7 @@ export default function WorkoutsPage() {
   };
 
   const weekDates = getWeekDates();
-  const selectedWorkout = selectedDay && weeklyPlan ? weeklyPlan[selectedDay] : null;
+  const selectedWorkout = selectedDay && weeklyPlan ? weeklyPlan[selectedDay] as DayWorkout | undefined : null;
 
   if (initialLoading) {
     return (
@@ -453,7 +460,7 @@ export default function WorkoutsPage() {
             {/* Desktop Grid */}
             <div className="hidden md:grid grid-cols-7 gap-3 mb-6">
               {DAYS.map((day, index) => {
-                const workout = weeklyPlan[day];
+                const workout = weeklyPlan[day] as DayWorkout | undefined;
                 const dateInfo = weekDates[index];
                 const typeInfo = workout ? WORKOUT_TYPES[workout.type] || WORKOUT_TYPES.rest : WORKOUT_TYPES.rest;
                 const Icon = typeInfo.icon;
@@ -507,7 +514,7 @@ export default function WorkoutsPage() {
             {/* Mobile Cards */}
             <div className="md:hidden space-y-3">
               {DAYS.map((day, index) => {
-                const workout = weeklyPlan[day];
+                const workout = weeklyPlan[day] as DayWorkout | undefined;
                 const dateInfo = weekDates[index];
                 const typeInfo = workout ? WORKOUT_TYPES[workout.type] || WORKOUT_TYPES.rest : WORKOUT_TYPES.rest;
                 const Icon = typeInfo.icon;

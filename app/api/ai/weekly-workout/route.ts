@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
 import { generateWeeklyWorkoutPlan } from '@/lib/openai';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'birthtech-jwt-secret-2026';
@@ -55,14 +54,15 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all weekly plans with workouts (history)
-    const plans = await prisma.weeklyPlan.findMany({
-      where: {
-        userId,
-        NOT: { workouts: Prisma.JsonNull }
-      },
+    const allPlans = await prisma.weeklyPlan.findMany({
+      where: { userId },
       orderBy: { weekStart: 'desc' },
-      take: 12,
     });
+
+    // Filter to only include plans with workouts (not null/empty)
+    const plans = allPlans
+      .filter((plan: typeof allPlans[number]) => plan.workouts && Object.keys(plan.workouts as object).length > 0)
+      .slice(0, 12);
 
     return NextResponse.json({ plans });
   } catch (error: any) {
@@ -87,11 +87,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Profile not found. Please complete onboarding.' }, { status: 404 });
     }
 
-    // Calculate week number
-    const existingPlans = await prisma.weeklyPlan.count({
-      where: { userId, NOT: { workouts: Prisma.JsonNull } }
+    // Calculate week number by counting plans with workouts
+    const allUserPlans = await prisma.weeklyPlan.findMany({
+      where: { userId },
+      select: { workouts: true },
     });
-    const weekNumber = existingPlans + 1;
+    const existingPlansCount = allUserPlans.filter(
+      (plan: typeof allUserPlans[number]) => plan.workouts && Object.keys(plan.workouts as object).length > 0
+    ).length;
+    const weekNumber = existingPlansCount + 1;
 
     const weekStart = getWeekStart();
     const weekEnd = getWeekEnd(weekStart);
