@@ -425,6 +425,71 @@ export default function ProductsPage() {
         </div>
       </section>
 
+      {/* More Products Section */}
+      <section className="py-16 px-4 bg-gray-50">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Explore More Products</h2>
+            <p className="text-gray-600">Innovative solutions for maternal and baby care</p>
+          </div>
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {/* MomSense Card */}
+            <Link href="/products/momsense" className="group">
+              <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all border border-gray-100">
+                <div className="aspect-video bg-gradient-to-br from-pink-50 to-purple-50 relative overflow-hidden">
+                  <Image
+                    src="/images/momsense/6.png"
+                    alt="MomSense Smart Wearable"
+                    fill
+                    className="object-contain p-4 group-hover:scale-105 transition-transform"
+                  />
+                  <div className="absolute top-4 left-4 bg-gradient-to-r from-pink-500 to-purple-600 text-white px-3 py-1 rounded-full text-sm font-medium">
+                    New
+                  </div>
+                </div>
+                <div className="p-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors">
+                    MomSense Smart Wearable
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    AI-powered wearable system for mothers and newborn babies. Two connected bands for continuous care and peace of mind.
+                  </p>
+                  <div className="flex items-center text-purple-600 font-medium">
+                    Learn More <ChevronRight className="w-5 h-5 ml-1 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+              </div>
+            </Link>
+
+            {/* BirthChair Card - Current Page */}
+            <div className="bg-white rounded-2xl overflow-hidden shadow-sm border-2 border-purple-500 relative">
+              <div className="absolute top-4 right-4 bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-medium z-10">
+                Viewing Now
+              </div>
+              <div className="aspect-video bg-gradient-to-br from-purple-50 to-pink-50 relative overflow-hidden">
+                <Image
+                  src="/images/birth_chair/1.png"
+                  alt="BirthChair"
+                  fill
+                  className="object-contain p-4"
+                />
+              </div>
+              <div className="p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  BirthChair
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  AI-powered birthing chair with non-invasive monitoring, predictive risk analysis, and portable design.
+                </p>
+                <div className="flex items-center text-gray-400 font-medium">
+                  Currently Viewing
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="py-16 px-4">
         <div className="max-w-4xl mx-auto">
