@@ -243,6 +243,12 @@ export default function MomSensePage() {
               MomSense Smart Wearable
             </h1>
 
+            {/* Price */}
+            <div className="flex items-baseline gap-2 mb-4">
+              <span className="text-4xl font-bold text-gray-900">$29.99</span>
+              <span className="text-gray-500">for 2 bands (Mother + Baby)</span>
+            </div>
+
             {/* Value Proposition */}
             <p className="text-xl text-purple-600 font-medium mb-6">
               Caring connection for mother and baby, every moment of the day.

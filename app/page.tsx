@@ -291,6 +291,10 @@ export default function Home() {
                     {item}
                   </li>
                 ))}
+                <li className="flex items-center gap-2 text-pink-600 font-medium">
+                  <Heart className="w-5 h-5 text-pink-500" />
+                  2 MomSense bands after 3 months
+                </li>
               </ul>
               <Link href="/auth/signup?plan=monthly" className="btn-primary w-full block text-center">
                 Get Started
@@ -321,6 +325,10 @@ export default function Home() {
                     {item}
                   </li>
                 ))}
+                <li className="flex items-center gap-2 text-pink-600 font-medium">
+                  <Heart className="w-5 h-5 text-pink-500" />
+                  2 MomSense bands included
+                </li>
               </ul>
               <Link href="/auth/signup?plan=annual" className="btn-secondary w-full block text-center">
                 Get Annual Plan
