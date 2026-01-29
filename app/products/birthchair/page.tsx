@@ -110,9 +110,9 @@ export default function ProductsPage() {
             <Image
               src="/images/logo/BirthTech-V2_Final 2.png"
               alt="BirthTech Logo"
-              width={140}
-              height={40}
-              className="h-10 w-auto"
+              width={200}
+              height={56}
+              className="h-14 w-auto"
             />
           </Link>
           <nav className="hidden md:flex items-center gap-6">
@@ -519,9 +519,9 @@ export default function ProductsPage() {
             <Image
               src="/images/logo/BirthTech-V2_Final 2.png"
               alt="BirthTech Logo"
-              width={120}
-              height={35}
-              className="h-8 w-auto brightness-0 invert"
+              width={200}
+              height={56}
+              className="h-14 w-auto brightness-0 invert"
             />
             <p className="text-gray-400 text-sm">
               © 2026 BirthTech. All rights reserved.

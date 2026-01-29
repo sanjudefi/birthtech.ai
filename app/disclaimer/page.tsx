@@ -14,12 +14,11 @@ export default function DisclaimerPage() {
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <Image
-            src="https://thebirthtech.com/wp-content/uploads/2017/06/birthtechlogo-2.png"
+            src="/images/logo/BirthTech-V2_Final 2.png"
             alt="BirthTech Logo"
-            width={120}
-            height={35}
-            className="h-8 w-auto"
-            unoptimized
+            width={200}
+            height={56}
+            className="h-14 w-auto"
           />
         </div>
       </header>
